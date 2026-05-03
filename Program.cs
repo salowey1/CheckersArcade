@@ -1,2 +1,4 @@
-﻿using var game = new SovietReigns.Game1();
+﻿using CheckersArcade;
+
+using var game = new Game1();
 game.Run();
