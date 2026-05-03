@@ -1,4 +1,4 @@
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using CheckersArcade.Core;
@@ -9,7 +9,7 @@ namespace CheckersArcade.Screens;
 public class GameScreen
 {
     private readonly Board _board;
-    private readonly ExplosionSystem _explosions;
+    private readonly PhysicsSystem _physics;
     private readonly Texture2D _whitePixel;
     private readonly SpriteFont? _font;
 
@@ -17,12 +17,13 @@ public class GameScreen
     {
         _font = font;
         _board = new Board();
-        _explosions = new ExplosionSystem(gd, 600, gd.Viewport.Width, gd.Viewport.Height);
+        _physics = new PhysicsSystem(gd, gd.Viewport.Width, gd.Viewport.Height);
         _whitePixel = new Texture2D(gd, 1, 1);
         _whitePixel.SetData(new[] { Color.White });
 
+        // При взятии запускаем волну вместо осколков
         _board.OnPieceCaptured += (pos, isRed) =>
-            _explosions.SpawnExplosion(pos, isRed ? Color.Crimson : Color.DarkBlue, 20);
+            _physics.TriggerWave(pos, isRed ? Color.Crimson : Color.DarkBlue);
     }
 
     public void Update(MouseState mouse, bool isLeftClick)
@@ -39,12 +40,12 @@ public class GameScreen
         }
     }
 
-    public void UpdatePhysics(float dt) => _explosions.Update(dt);
+    public void UpdatePhysics(float dt) => _physics.Update(dt, _board);
 
     public void Draw(SpriteBatch sb)
     {
         DrawBoard(sb);
-        _explosions.Draw(sb);
+        _physics.Draw(sb); // Рисуем волны и летящие шашки ПОВЕРХ доски
         DrawHud(sb);
     }
 
@@ -78,8 +79,10 @@ public class GameScreen
     {
         if (_font != null)
         {
-            sb.DrawString(_font, _board.IsRedTurn ? "���: �������" : "���: �����", new Vector2(20, 20), Color.White);
-            sb.DrawString(_font, "ESC - ����� � ����", new Vector2(20, 45), Color.Gray);
+            string turnText = _board.IsRedTurn ? "Ход: КРАСНЫЕ" : "Ход: СИНИЕ";
+            if (_board.IsChainCaptureActive) turnText = "⚡ ЦЕПНОЕ ВЗЯТИЕ!";
+            sb.DrawString(_font, turnText, new Vector2(20, 20), _board.IsChainCaptureActive ? Color.Yellow : Color.White);
+            sb.DrawString(_font, "ESC - Меню", new Vector2(20, 45), Color.Gray);
         }
     }
 
@@ -94,11 +97,7 @@ public class GameScreen
             Vector2 p2 = new Vector2((float)Math.Cos(a2), (float)Math.Sin(a2)) * radius;
             DrawLine(sb, x + p1.X, y + p1.Y, x + p2.X, y + p2.Y, 4f, color);
         }
-        Rectangle rect = new Rectangle(
-            (int)(x - radius + 2),
-            (int)(y - radius + 2),
-            (int)(radius * 2 - 4),
-            (int)(radius * 2 - 4));
+        Rectangle rect = new Rectangle((int)(x - radius + 2), (int)(y - radius + 2), (int)(radius * 2 - 4), (int)(radius * 2 - 4));
         sb.Draw(_whitePixel, rect, color);
     }
 
@@ -111,5 +110,9 @@ public class GameScreen
         sb.Draw(_whitePixel, position, null, color, angle, Vector2.Zero, scale, SpriteEffects.None, 0f);
     }
 
-    public void Reset() => _board.Init();
+    public void Reset()
+    {
+        _board.Init();
+        _physics.Clear();
+    }
 }

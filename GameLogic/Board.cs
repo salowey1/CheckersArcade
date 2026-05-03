@@ -155,4 +155,5 @@ public class Board
     }
 
     public Piece GetPiece(int x, int y) => _grid[x, y];
+    public void RemovePiece(int x, int y) => _grid[x, y] = null;
 }

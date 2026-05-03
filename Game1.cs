@@ -30,7 +30,10 @@ public class Game1 : Game
         TargetElapsedTime = TimeSpan.FromTicks(166666);
     }
 
-    protected override void Initialize() => base.Initialize();
+    protected override void Initialize()
+    {
+        base.Initialize();
+    }
 
     protected override void LoadContent()
     {
