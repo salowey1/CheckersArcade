@@ -1,3 +1,4 @@
+#nullable disable
 using Microsoft.Xna.Framework;
 using System;
 using System.Collections.Generic;
@@ -18,7 +19,7 @@ public class Board
     private readonly List<Vector2> _validMoves = new();
     public IReadOnlyList<Vector2> ValidMoves => _validMoves;
 
-    public event Action<Vector2, bool>? OnPieceCaptured; // Position, isRed
+    public event Action<Vector2, bool> OnPieceCaptured;
 
     public Board() => Init();
 
@@ -107,13 +108,13 @@ public class Board
             var captured = _grid[mx, my];
             _grid[mx, my] = null;
 
-            Vector2 worldPos = new(
+            Vector2 worldPos = new Vector2(
                 OffsetX + mx * CellSize + CellSize / 2f,
                 OffsetY + my * CellSize + CellSize / 2f);
 
-            OnPieceCaptured?.Invoke(worldPos, captured!.IsRed);
+            OnPieceCaptured?.Invoke(worldPos, captured.IsRed);
         }
     }
 
-    public Piece? GetPiece(int x, int y) => _grid[x, y];
+    public Piece GetPiece(int x, int y) => _grid[x, y];
 }

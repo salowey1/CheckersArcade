@@ -12,12 +12,11 @@ public enum GameState { Menu, Playing }
 public class Game1 : Game
 {
     private readonly GraphicsDeviceManager _graphics;
-    private SpriteBatch _spriteBatch;
-    private SpriteFont _font;
-
+    private SpriteBatch _spriteBatch = null!;
+    private SpriteFont? _font;
     private GameState _state = GameState.Menu;
-    private MenuScreen _menu;
-    private GameScreen _game;
+    private MenuScreen _menu = null!;
+    private GameScreen _game = null!;
     private MouseState _currentMouse, _prevMouse;
 
     public Game1()

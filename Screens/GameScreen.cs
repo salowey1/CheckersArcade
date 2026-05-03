@@ -11,15 +11,15 @@ public class GameScreen
     private readonly Board _board;
     private readonly ExplosionSystem _explosions;
     private readonly Texture2D _whitePixel;
-    private readonly SpriteFont _font;
+    private readonly SpriteFont? _font;
 
-    public GameScreen(GraphicsDevice gd, SpriteFont font)
+    public GameScreen(GraphicsDevice gd, SpriteFont? font)
     {
+        _font = font;
         _board = new Board();
         _explosions = new ExplosionSystem(gd, 600, gd.Viewport.Width, gd.Viewport.Height);
         _whitePixel = new Texture2D(gd, 1, 1);
         _whitePixel.SetData(new[] { Color.White });
-        _font = font;
 
         _board.OnPieceCaptured += (pos, isRed) =>
             _explosions.SpawnExplosion(pos, isRed ? Color.Crimson : Color.DarkBlue, 20);
@@ -61,14 +61,14 @@ public class GameScreen
                 sb.Draw(_whitePixel, new Rectangle(Board.OffsetX + x * Board.CellSize, Board.OffsetY + y * Board.CellSize, Board.CellSize, Board.CellSize), cellCol);
 
                 if (_board.ValidMoves.Contains(new Vector2(x, y)))
-                    DrawCircle(sb, Board.OffsetX + x * Board.CellSize + Board.CellSize / 2, Board.OffsetY + y * Board.CellSize + Board.CellSize / 2, 10, Color.LimeGreen * 0.6f);
+                    DrawCircle(sb, Board.OffsetX + x * Board.CellSize + Board.CellSize / 2f, Board.OffsetY + y * Board.CellSize + Board.CellSize / 2f, 10f, Color.LimeGreen * 0.6f);
 
                 var p = _board.GetPiece(x, y);
                 if (p != null)
                 {
                     Color pCol = p.IsRed ? Color.Crimson : Color.Navy;
                     if (x == _board.SelectedX && y == _board.SelectedY) pCol = Color.White;
-                    DrawCircle(sb, Board.OffsetX + x * Board.CellSize + Board.CellSize / 2, Board.OffsetY + y * Board.CellSize + Board.CellSize / 2, Board.CellSize / 2 - 10, pCol);
+                    DrawCircle(sb, Board.OffsetX + x * Board.CellSize + Board.CellSize / 2f, Board.OffsetY + y * Board.CellSize + Board.CellSize / 2f, Board.CellSize / 2f - 10f, pCol);
                 }
             }
         }
@@ -90,18 +90,25 @@ public class GameScreen
         for (int i = 0; i < segments; i++)
         {
             float a1 = i * step, a2 = (i + 1) * step;
-            Vector2 p1 = new((float)Math.Cos(a1), (float)Math.Sin(a1)) * radius;
-            Vector2 p2 = new((float)Math.Cos(a2), (float)Math.Sin(a2)) * radius;
-            DrawLine(sb, x + p1.X, y + p1.Y, x + p2.X, y + p2.Y, 4, color);
+            Vector2 p1 = new Vector2((float)Math.Cos(a1), (float)Math.Sin(a1)) * radius;
+            Vector2 p2 = new Vector2((float)Math.Cos(a2), (float)Math.Sin(a2)) * radius;
+            DrawLine(sb, x + p1.X, y + p1.Y, x + p2.X, y + p2.Y, 4f, color);
         }
-        sb.Draw(_whitePixel, new Rectangle((int)(x - radius + 2), (int)(y - radius + 2), (int)(radius * 2 - 4), (int)(radius * 2 - 4)), color);
+        Rectangle rect = new Rectangle(
+            (int)(x - radius + 2),
+            (int)(y - radius + 2),
+            (int)(radius * 2 - 4),
+            (int)(radius * 2 - 4));
+        sb.Draw(_whitePixel, rect, color);
     }
 
     private void DrawLine(SpriteBatch sb, float x1, float y1, float x2, float y2, float thickness, Color color)
     {
         float angle = (float)Math.Atan2(y2 - y1, x2 - x1);
-        float length = Vector2.Distance(new(x1, y1), new(x2, y2));
-        sb.Draw(_whitePixel, new(x1, y1), null, color, angle, Vector2.Zero, new(length, thickness), SpriteEffects.None, 0);
+        float length = Vector2.Distance(new Vector2(x1, y1), new Vector2(x2, y2));
+        Vector2 position = new Vector2(x1, y1);
+        Vector2 scale = new Vector2(length, thickness);
+        sb.Draw(_whitePixel, position, null, color, angle, Vector2.Zero, scale, SpriteEffects.None, 0f);
     }
 
     public void Reset() => _board.Init();
