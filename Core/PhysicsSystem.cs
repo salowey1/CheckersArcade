@@ -7,18 +7,18 @@ using CheckersArcade.GameLogic;
 
 namespace CheckersArcade.Core;
 
-// Сбитая шашка -> физическое тело
 public class PhysicsBody
 {
     public Vector2 Position;
     public Vector2 Velocity;
-    public float Mass = 1f;
     public float Radius;
     public Color Tint;
+    public float Alpha = 1f;
     public bool IsActive = true;
+    public float Lifetime = 0f;
+    public const float MAX_LIFETIME = 5f; // Время жизни физической копии
 }
 
-// Ударная волна
 public class Shockwave
 {
     public Vector2 Center;
@@ -27,14 +27,14 @@ public class Shockwave
     public float Speed;
     public Color Tint;
     public bool IsActive;
-    public HashSet<Point> AffectedCells = new();
+    public HashSet<Point> HitCells = new();
 
-    public Shockwave(Vector2 center, Color color, float cellSize, int cellRange = 2)
+    public Shockwave(Vector2 center, Color color, float cellSize, int range = 2)
     {
         Center = center;
         Radius = 0;
-        MaxRadius = cellSize * cellRange; // Ровно 2 клетки
-        Speed = 950f;                    // Скорость фронта волны
+        MaxRadius = cellSize * range;
+        Speed = 1100f; // Скорость фронта волны
         Tint = color;
         IsActive = true;
     }
@@ -42,17 +42,15 @@ public class Shockwave
     public void Update(float dt, Board board, List<PhysicsBody> spawned)
     {
         if (!IsActive) return;
-        float prevRadius = Radius;
         Radius += Speed * dt;
         if (Radius >= MaxRadius) { IsActive = false; return; }
 
-        // Проверяем клетки в расширяющемся кольце волны
         for (int y = 0; y < 8; y++)
         {
             for (int x = 0; x < 8; x++)
             {
                 Point cell = new Point(x, y);
-                if (AffectedCells.Contains(cell)) continue;
+                if (HitCells.Contains(cell)) continue;
 
                 var piece = board.GetPiece(x, y);
                 if (piece == null) continue;
@@ -62,24 +60,27 @@ public class Shockwave
                     Board.OffsetY + y * Board.CellSize + Board.CellSize / 2f);
 
                 float dist = Vector2.Distance(Center, cellCenter);
-                // Шашка попала под фронт волны
-                if (dist <= Radius && dist >= prevRadius - 3f)
+
+                // Фронт волны накрыл клетку
+                if (dist <= Radius)
                 {
-                    AffectedCells.Add(cell);
-                    board.RemovePiece(x, y); // Убираем с сетки
+                    HitCells.Add(cell);
 
                     Vector2 dir = cellCenter - Center;
                     if (dir.LengthSquared() > 0.01f) dir.Normalize();
 
-                    // Сила импульса зависит от расстояния до центра (как в керлинге)
-                    float force = 850f * (1f - (dist / MaxRadius));
+                    // Сила толчка зависит от расстояния до эпицентра (керлинг-эффект)
+                    float force = 900f * (1f - (dist / MaxRadius));
+                    float lateralKick = Random.Shared.Next(-120, 120);
+
                     spawned.Add(new PhysicsBody
                     {
                         Position = cellCenter,
-                        Velocity = dir * force + new Vector2(Random.Shared.Next(-40, 40), Random.Shared.Next(-40, 40)),
-                        Radius = Board.CellSize / 2f - 5f,
+                        Velocity = dir * force + new Vector2(lateralKick, lateralKick),
+                        Radius = Board.CellSize / 2f - 6f,
                         Tint = piece.IsRed ? Color.Crimson : Color.Navy,
-                        IsActive = true
+                        IsActive = true,
+                        Alpha = 1f
                     });
                 }
             }
@@ -89,9 +90,8 @@ public class Shockwave
     public void Draw(SpriteBatch sb, Texture2D pixel)
     {
         if (!IsActive) return;
-        float alpha = 0.6f * (1f - (Radius / MaxRadius));
+        float alpha = 0.5f * (1f - (Radius / MaxRadius));
         Color drawColor = Tint * alpha;
-        // Рисуем как расширяющийся диск-волну
         sb.Draw(pixel, Center, null, drawColor, 0f, Vector2.Zero, new Vector2(Radius * 2f), SpriteEffects.None, 0f);
     }
 }
@@ -103,9 +103,10 @@ public class PhysicsSystem
     private readonly Texture2D _pixel;
     private readonly Rectangle _bounds;
 
-    // ⛸️ Настройки "керлинга"
-    private const float FRICTION = 0.982f;      // Плавное скольжение
-    private const float RESTITUTION = 0.85f;     // Упругость столкновений
+    // ⛸️ Параметры керлинг-физики
+    private const float FRICTION = 0.985f;      // Скольжение
+    private const float RESTITUTION = 0.88f;     // Упругость отскока
+    private const float COLLISION_CORRECTION = 0.2f; // Коррекция перекрытия
 
     public PhysicsSystem(GraphicsDevice gd, int width, int height)
     {
@@ -123,38 +124,40 @@ public class PhysicsSystem
         dt = Math.Min(dt, 0.05f);
         var newBodies = new List<PhysicsBody>();
 
-        // 1. Обновляем волны -> спавним сбитые шашки
+        // 1. Волны спавнят физические копии
         for (int i = _waves.Count - 1; i >= 0; i--)
         {
-            var w = _waves[i];
-            w.Update(dt, board, newBodies);
-            if (!w.IsActive) _waves.RemoveAt(i);
+            _waves[i].Update(dt, board, newBodies);
+            if (!_waves[i].IsActive) _waves.RemoveAt(i);
         }
         _bodies.AddRange(newBodies);
 
-        // 2. Физика тел (скольжение + границы)
+        // 2. Физика тел
         for (int i = _bodies.Count - 1; i >= 0; i--)
         {
             var b = _bodies[i];
             if (!b.IsActive) continue;
 
+            b.Lifetime += dt;
             b.Position += b.Velocity * dt;
-            b.Velocity *= FRICTION; // Трение "льда"
+            b.Velocity *= FRICTION;
 
-            // Остановка при микро-скорости
-            if (b.Velocity.LengthSquared() < 0.5f) b.Velocity = Vector2.Zero;
+            // Затухание и смерть
+            if (b.Lifetime > PhysicsBody.MAX_LIFETIME || b.Velocity.LengthSquared() < 0.2f)
+            {
+                b.Alpha -= dt * 2f;
+                if (b.Alpha <= 0f) b.IsActive = false;
+            }
 
-            // Отскок от стен экрана
+            // Отскок от границ окна
             float r = b.Radius;
             if (b.Position.X < _bounds.Left + r) { b.Position.X = _bounds.Left + r; b.Velocity.X = Math.Abs(b.Velocity.X) * RESTITUTION; }
             if (b.Position.X > _bounds.Right - r) { b.Position.X = _bounds.Right - r; b.Velocity.X = -Math.Abs(b.Velocity.X) * RESTITUTION; }
             if (b.Position.Y < _bounds.Top + r) { b.Position.Y = _bounds.Top + r; b.Velocity.Y = Math.Abs(b.Velocity.Y) * RESTITUTION; }
             if (b.Position.Y > _bounds.Bottom - r) { b.Position.Y = _bounds.Bottom - r; b.Velocity.Y = -Math.Abs(b.Velocity.Y) * RESTITUTION; }
-
-            if (b.Position.Y > _bounds.Bottom + 150) b.IsActive = false; // Улетел за экран
         }
 
-        // 3. Столкновения тел друг с другом (передача импульса)
+        // 3. Коллизии тел друг с другом (упругий отскок)
         for (int i = 0; i < _bodies.Count; i++)
         {
             if (!_bodies[i].IsActive) continue;
@@ -174,22 +177,22 @@ public class PhysicsSystem
         float dist = diff.Length();
         float minDist = a.Radius + b.Radius;
 
-        if (dist < minDist && dist > 0.01f)
+        if (dist < minDist && dist > 0.001f)
         {
             Vector2 normal = diff / dist;
             float overlap = minDist - dist;
 
-            // Разделяем пересечение
+            // Разделяем перекрытие
             a.Position += normal * overlap * 0.5f;
             b.Position -= normal * overlap * 0.5f;
 
-            // Импульс по закону сохранения количества движения
+            // Импульс
             float relVel = Vector2.Dot(a.Velocity - b.Velocity, normal);
             if (relVel > 0) return; // Уже разлетаются
 
-            float impulse = -(1 + RESTITUTION) * relVel / (1f / a.Mass + 1f / b.Mass);
-            a.Velocity += impulse * normal / a.Mass;
-            b.Velocity -= impulse * normal / b.Mass;
+            float impulse = -(1 + RESTITUTION) * relVel / 2f; // Mass = 1 для всех
+            a.Velocity += impulse * normal;
+            b.Velocity -= impulse * normal;
         }
     }
 
@@ -199,9 +202,10 @@ public class PhysicsSystem
         foreach (var b in _bodies)
         {
             if (!b.IsActive) continue;
+            Color drawColor = b.Tint * b.Alpha;
             Vector2 origin = new Vector2(b.Radius, b.Radius);
             Vector2 scale = new Vector2(b.Radius * 2f, b.Radius * 2f);
-            sb.Draw(_pixel, b.Position, null, b.Tint, 0f, origin, scale, SpriteEffects.None, 0f);
+            sb.Draw(_pixel, b.Position, null, drawColor, 0f, origin, scale, SpriteEffects.None, 0f);
         }
     }
 }
