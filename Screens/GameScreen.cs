@@ -13,11 +13,9 @@ public class GameScreen
     private readonly PhysicsSystem _physics;
     private readonly Texture2D _whitePixel;
     private readonly SpriteFont _font;
-    private readonly GraphicsDevice _gd;
 
     public GameScreen(GraphicsDevice gd, SpriteFont font)
     {
-        _gd = gd;
         _font = font;
         _board = new Board();
         _physics = new PhysicsSystem(gd, gd.Viewport.Width, gd.Viewport.Height);
@@ -42,7 +40,11 @@ public class GameScreen
         }
     }
 
-    public void UpdatePhysics(float dt) => _physics.Update(dt, _board);
+    public void UpdatePhysics(float dt)
+    {
+        _board.UpdateAnimations(dt); // ⚡ Обновляем плавность передвижения
+        _physics.Update(dt, _board);
+    }
 
     public void Draw(SpriteBatch sb)
     {
@@ -53,7 +55,6 @@ public class GameScreen
 
     private void DrawBoard(SpriteBatch sb)
     {
-        // Фон доски
         sb.Draw(_whitePixel, new Rectangle(Board.OffsetX, Board.OffsetY, 8 * Board.CellSize, 8 * Board.CellSize), Color.DimGray);
 
         for (int y = 0; y < 8; y++)
@@ -64,17 +65,18 @@ public class GameScreen
                 Color cellCol = isDark ? new Color(80, 60, 40) : new Color(200, 180, 150);
                 sb.Draw(_whitePixel, new Rectangle(Board.OffsetX + x * Board.CellSize, Board.OffsetY + y * Board.CellSize, Board.CellSize, Board.CellSize), cellCol);
 
-                // Подсветка ходов
                 if (_board.ValidMoves.Contains(new Vector2(x, y)))
                     DrawCircle(sb, Board.OffsetX + x * Board.CellSize + Board.CellSize / 2f, Board.OffsetY + y * Board.CellSize + Board.CellSize / 2f, 10f, Color.LimeGreen * 0.6f);
 
-                // Шашки
                 var p = _board.GetPiece(x, y);
                 if (p != null)
                 {
                     Color pCol = p.IsRed ? Color.Crimson : Color.Navy;
                     if (x == _board.SelectedX && y == _board.SelectedY) pCol = Color.White;
-                    DrawCircle(sb, Board.OffsetX + x * Board.CellSize + Board.CellSize / 2f, Board.OffsetY + y * Board.CellSize + Board.CellSize / 2f, Board.CellSize / 2f - 10f, pCol);
+
+                    // 🎯 Используем интерполированную позицию
+                    Vector2 center = _board.GetVisualPieceCenter(x, y);
+                    DrawCircle(sb, center.X, center.Y, Board.CellSize / 2f - 10f, pCol);
                 }
             }
         }
@@ -83,12 +85,9 @@ public class GameScreen
     private void DrawHud(SpriteBatch sb)
     {
         if (_font == null) return;
-
         string turnText = _board.IsRedTurn ? "Ход: КРАСНЫЕ" : "Ход: СИНИЕ";
         if (_board.IsChainCaptureActive) turnText = "⚡ ЦЕПНОЕ ВЗЯТИЕ!";
-
-        Color hudColor = _board.IsChainCaptureActive ? Color.Yellow : Color.White;
-        sb.DrawString(_font, turnText, new Vector2(20, 20), hudColor);
+        sb.DrawString(_font, turnText, new Vector2(20, 20), _board.IsChainCaptureActive ? Color.Yellow : Color.White);
         sb.DrawString(_font, "ESC - Меню", new Vector2(20, 45), Color.Gray);
     }
 
@@ -111,9 +110,7 @@ public class GameScreen
     {
         float angle = (float)Math.Atan2(y2 - y1, x2 - x1);
         float length = Vector2.Distance(new Vector2(x1, y1), new Vector2(x2, y2));
-        Vector2 position = new Vector2(x1, y1);
-        Vector2 scale = new Vector2(length, thickness);
-        sb.Draw(_whitePixel, position, null, color, angle, Vector2.Zero, scale, SpriteEffects.None, 0f);
+        sb.Draw(_whitePixel, new Vector2(x1, y1), null, color, angle, Vector2.Zero, new Vector2(length, thickness), SpriteEffects.None, 0f);
     }
 
     public void Reset()
