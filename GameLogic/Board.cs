@@ -1,4 +1,4 @@
-#nullable disable
+﻿#nullable disable
 using Microsoft.Xna.Framework;
 using System;
 using System.Collections.Generic;
@@ -15,7 +15,9 @@ public class Board
     public bool IsRedTurn { get; private set; } = true;
     public int SelectedX { get; set; } = -1;
     public int SelectedY { get; set; } = -1;
+    public bool IsChainCaptureActive => _mustContinueCapture;
 
+    private bool _mustContinueCapture = false;
     private readonly List<Vector2> _validMoves = new();
     public IReadOnlyList<Vector2> ValidMoves => _validMoves;
 
@@ -35,12 +37,25 @@ public class Board
         IsRedTurn = true;
         SelectedX = SelectedY = -1;
         _validMoves.Clear();
+        _mustContinueCapture = false;
     }
 
     public void HandleClick(int gx, int gy)
     {
         var piece = _grid[gx, gy];
 
+        // 🔒 Режим обязательного продолжения взятия
+        if (_mustContinueCapture)
+        {
+            if (_validMoves.Contains(new Vector2(gx, gy)))
+            {
+                ExecuteMove(SelectedX, SelectedY, gx, gy);
+                return; // Ход остаётся у того же игрока
+            }
+            return; // Игнорируем клики мимо валидных клеток
+        }
+
+        // 🎯 Обычный выбор шашки
         if (SelectedX == -1 && piece != null && piece.IsRed == IsRedTurn)
         {
             SelectedX = gx; SelectedY = gy;
@@ -48,33 +63,40 @@ public class Board
             return;
         }
 
+        // 🚶 Выполнение хода
         if (SelectedX != -1 && piece == null && _validMoves.Contains(new Vector2(gx, gy)))
         {
             ExecuteMove(SelectedX, SelectedY, gx, gy);
             SelectedX = SelectedY = -1;
             _validMoves.Clear();
-            IsRedTurn = !IsRedTurn;
             return;
         }
 
+        // 🔄 Перевыбор своей шашки
         if (SelectedX != -1 && piece != null && piece.IsRed == IsRedTurn)
         {
             SelectedX = gx; SelectedY = gy;
             CalcValidMoves(gx, gy);
         }
-        else
+        else if (SelectedX != -1)
         {
             SelectedX = SelectedY = -1;
             _validMoves.Clear();
         }
     }
 
-    private void CalcValidMoves(int x, int y)
+    private void CalcValidMoves(int x, int y, bool onlyCaptures = false)
     {
         _validMoves.Clear();
         int dir = IsRedTurn ? -1 : 1;
-        CheckMove(x + 1, y + dir);
-        CheckMove(x - 1, y + dir);
+
+        if (!onlyCaptures)
+        {
+            CheckMove(x + 1, y + dir);
+            CheckMove(x - 1, y + dir);
+        }
+
+        // Взятия проверяем всегда (они приоритетнее)
         CheckCapture(x + 2, y + dir * 2, x + 1, y + dir);
         CheckCapture(x - 2, y + dir * 2, x - 1, y + dir);
     }
@@ -113,7 +135,23 @@ public class Board
                 OffsetY + my * CellSize + CellSize / 2f);
 
             OnPieceCaptured?.Invoke(worldPos, captured.IsRed);
+
+            // 🔍 Проверяем, есть ли ещё взятия с новой позиции
+            CalcValidMoves(tx, ty, onlyCaptures: true);
+            if (_validMoves.Count > 0)
+            {
+                SelectedX = tx;
+                SelectedY = ty;
+                _mustContinueCapture = true;
+                return; // Цепочка продолжается, ход не передаётся
+            }
         }
+
+        // Если не взятие или цепочка закончилась
+        _mustContinueCapture = false;
+        SelectedX = SelectedY = -1;
+        _validMoves.Clear();
+        IsRedTurn = !IsRedTurn;
     }
 
     public Piece GetPiece(int x, int y) => _grid[x, y];
