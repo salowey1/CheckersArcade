@@ -1,4 +1,5 @@
-﻿using Microsoft.Xna.Framework;
+﻿#nullable disable
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using CheckersArcade.Screens;
@@ -7,6 +8,7 @@ using System;
 
 namespace CheckersArcade;
 
+public enum GameMode { Classic, Physics } // ⬅️ Новый enum
 public enum GameState { Menu, Playing }
 
 public class Game1 : Game
@@ -30,10 +32,7 @@ public class Game1 : Game
         TargetElapsedTime = TimeSpan.FromTicks(166666);
     }
 
-    protected override void Initialize()
-    {
-        base.Initialize();
-    }
+    protected override void Initialize() => base.Initialize();
 
     protected override void LoadContent()
     {
@@ -42,7 +41,11 @@ public class Game1 : Game
         catch { _font = null; }
 
         _menu = new MenuScreen(GraphicsDevice, _font);
-        _menu.OnPlayClicked += () => { _state = GameState.Playing; _game?.Reset(); };
+        _menu.OnPlayClicked += (mode) =>
+        {
+            _state = GameState.Playing;
+            _game.Start(mode);
+        };
         _menu.OnExitClicked += Exit;
 
         _game = new GameScreen(GraphicsDevice, _font);
@@ -69,7 +72,7 @@ public class Game1 : Game
                 break;
             case GameState.Playing:
                 _game.Update(_currentMouse, leftClick);
-                _game.UpdatePhysics(dt);
+                _game.UpdateEffects(dt);
                 break;
         }
 

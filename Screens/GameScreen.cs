@@ -11,18 +11,36 @@ public class GameScreen
 {
     private readonly Board _board;
     private readonly PhysicsSystem _physics;
+    private readonly ClassicExplosionSystem _classicExplosions;
     private readonly Texture2D _whitePixel;
-    private readonly SpriteFont _font;
+    private readonly SpriteFont? _font;
+    private GameMode _currentMode = GameMode.Classic;
 
-    public GameScreen(GraphicsDevice gd, SpriteFont font)
+    public GameScreen(GraphicsDevice gd, SpriteFont? font)
     {
         _font = font;
         _board = new Board();
         _physics = new PhysicsSystem(gd, gd.Viewport.Width, gd.Viewport.Height);
+        _classicExplosions = new ClassicExplosionSystem(gd, gd.Viewport.Width, gd.Viewport.Height);
         _whitePixel = new Texture2D(gd, 1, 1);
         _whitePixel.SetData(new[] { Color.White });
 
-        _board.OnPieceCaptured += (pos, isRed) => _physics.TriggerWave(pos, isRed ? Color.Crimson : Color.DarkBlue);
+        // Один обработчик, который решает, что запускать
+        _board.OnPieceCaptured += (pos, isRed) =>
+        {
+            if (_currentMode == GameMode.Physics)
+                _physics.TriggerWave(pos, isRed ? Color.Crimson : Color.DarkBlue);
+            else
+                _classicExplosions.Spawn(pos, isRed ? Color.Crimson : Color.DarkBlue, 15);
+        };
+    }
+
+    public void Start(GameMode mode)
+    {
+        _currentMode = mode;
+        _board.Init();
+        _physics.Clear();
+        _classicExplosions.Clear();
     }
 
     public void Update(MouseState mouse, bool isLeftClick)
@@ -35,16 +53,18 @@ public class GameScreen
         }
     }
 
-    public void UpdatePhysics(float dt)
+    public void UpdateEffects(float dt)
     {
         _board.UpdateAnimations(dt);
-        _physics.Update(dt, _board);
+        if (_currentMode == GameMode.Physics) _physics.Update(dt, _board);
+        else _classicExplosions.Update(dt);
     }
 
     public void Draw(SpriteBatch sb)
     {
         DrawBoard(sb);
-        _physics.Draw(sb);
+        if (_currentMode == GameMode.Physics) _physics.Draw(sb);
+        else _classicExplosions.Draw(sb);
         DrawHud(sb);
     }
 
@@ -77,10 +97,13 @@ public class GameScreen
     private void DrawHud(SpriteBatch sb)
     {
         if (_font == null) return;
+        string modeText = _currentMode == GameMode.Classic ? "🏛 КЛАССИКА" : "⚡ ФИЗИКА";
         string turnText = _board.IsRedTurn ? "Ход: КРАСНЫЕ" : "Ход: СИНИЕ";
         if (_board.IsChainCaptureActive) turnText = "⚡ ЦЕПНОЕ ВЗЯТИЕ!";
-        sb.DrawString(_font, turnText, new Vector2(20, 20), _board.IsChainCaptureActive ? Color.Yellow : Color.White);
-        sb.DrawString(_font, "ESC - Меню", new Vector2(20, 45), Color.Gray);
+
+        sb.DrawString(_font, modeText, new Vector2(20, 20), Color.Orange);
+        sb.DrawString(_font, turnText, new Vector2(20, 45), _board.IsChainCaptureActive ? Color.Yellow : Color.White);
+        sb.DrawString(_font, "ESC - Меню", new Vector2(20, 70), Color.Gray);
     }
 
     private void DrawCircle(SpriteBatch sb, float x, float y, float radius, Color color)
@@ -103,6 +126,4 @@ public class GameScreen
         float length = Vector2.Distance(new Vector2(x1, y1), new Vector2(x2, y2));
         sb.Draw(_whitePixel, new Vector2(x1, y1), null, color, angle, Vector2.Zero, new Vector2(length, thickness), SpriteEffects.None, 0f);
     }
-
-    public void Reset() { _board.Init(); _physics.Clear(); }
 }
