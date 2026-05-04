@@ -85,7 +85,7 @@ public class GameScreen
     {
         if (_font == null) return;
         string turnText = _board.IsRedTurn ? "Ход: КРАСНЫЕ" : "Ход: СИНИЕ";
-        if (_board.IsChainCaptureActive) turnText = "⚡ ЦЕПНОЕ ВЗЯТИЕ!";
+        if (_board.IsChainCaptureActive) turnText = "ЦЕПНОЕ ВЗЯТИЕ";
         sb.DrawString(_font, turnText, new Vector2(20, 20), _board.IsChainCaptureActive ? Color.Yellow : Color.White);
         sb.DrawString(_font, "ESC - Меню", new Vector2(20, 45), Color.Gray);
     }
