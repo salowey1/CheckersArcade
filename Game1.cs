@@ -39,7 +39,7 @@ public class Game1 : Game
         _whitePixel = new Texture2D(GraphicsDevice, 1, 1);
         _whitePixel.SetData(new[] { Color.White });
 
-        try { _font = Content.Load<SpriteFont>("Content/Fonts/Arial"); }
+        try { _font = Content.Load<SpriteFont>("Fonts/Arial"); }
         catch { _font = null; }
 
         _menu = new MenuScreen(GraphicsDevice, _font);
