@@ -22,27 +22,22 @@ public class GameScreen
         _whitePixel = new Texture2D(gd, 1, 1);
         _whitePixel.SetData(new[] { Color.White });
 
-        _board.OnPieceCaptured += (pos, isRed) =>
-            _physics.TriggerWave(pos, isRed ? Color.Crimson : Color.DarkBlue);
+        _board.OnPieceCaptured += (pos, isRed) => _physics.TriggerWave(pos, isRed ? Color.Crimson : Color.DarkBlue);
     }
 
     public void Update(MouseState mouse, bool isLeftClick)
     {
         if (isLeftClick)
         {
-            int mx = mouse.X;
-            int my = mouse.Y;
-            int gx = (mx - Board.OffsetX) / Board.CellSize;
-            int gy = (my - Board.OffsetY) / Board.CellSize;
-
-            if (gx >= 0 && gx < 8 && gy >= 0 && gy < 8)
-                _board.HandleClick(gx, gy);
+            int gx = (mouse.X - Board.OffsetX) / Board.CellSize;
+            int gy = (mouse.Y - Board.OffsetY) / Board.CellSize;
+            if (gx >= 0 && gx < 8 && gy >= 0 && gy < 8) _board.HandleClick(gx, gy);
         }
     }
 
     public void UpdatePhysics(float dt)
     {
-        _board.UpdateAnimations(dt); // ⚡ Обновляем плавность передвижения
+        _board.UpdateAnimations(dt);
         _physics.Update(dt, _board);
     }
 
@@ -56,7 +51,6 @@ public class GameScreen
     private void DrawBoard(SpriteBatch sb)
     {
         sb.Draw(_whitePixel, new Rectangle(Board.OffsetX, Board.OffsetY, 8 * Board.CellSize, 8 * Board.CellSize), Color.DimGray);
-
         for (int y = 0; y < 8; y++)
         {
             for (int x = 0; x < 8; x++)
@@ -73,8 +67,6 @@ public class GameScreen
                 {
                     Color pCol = p.IsRed ? Color.Crimson : Color.Navy;
                     if (x == _board.SelectedX && y == _board.SelectedY) pCol = Color.White;
-
-                    // 🎯 Используем интерполированную позицию
                     Vector2 center = _board.GetVisualPieceCenter(x, y);
                     DrawCircle(sb, center.X, center.Y, Board.CellSize / 2f - 10f, pCol);
                 }
@@ -102,8 +94,7 @@ public class GameScreen
             Vector2 p2 = new Vector2((float)Math.Cos(a2), (float)Math.Sin(a2)) * radius;
             DrawLine(sb, x + p1.X, y + p1.Y, x + p2.X, y + p2.Y, 4f, color);
         }
-        Rectangle rect = new Rectangle((int)(x - radius + 2), (int)(y - radius + 2), (int)(radius * 2 - 4), (int)(radius * 2 - 4));
-        sb.Draw(_whitePixel, rect, color);
+        sb.Draw(_whitePixel, new Rectangle((int)(x - radius + 2), (int)(y - radius + 2), (int)(radius * 2 - 4), (int)(radius * 2 - 4)), color);
     }
 
     private void DrawLine(SpriteBatch sb, float x1, float y1, float x2, float y2, float thickness, Color color)
@@ -113,9 +104,5 @@ public class GameScreen
         sb.Draw(_whitePixel, new Vector2(x1, y1), null, color, angle, Vector2.Zero, new Vector2(length, thickness), SpriteEffects.None, 0f);
     }
 
-    public void Reset()
-    {
-        _board.Init();
-        _physics.Clear();
-    }
+    public void Reset() { _board.Init(); _physics.Clear(); }
 }
