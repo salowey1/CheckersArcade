@@ -1,24 +1,25 @@
 ﻿#nullable disable
+using System;
+using System.Diagnostics;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using CheckersArcade.Screens;
 using CheckersArcade.UI;
-using System;
 
 namespace CheckersArcade;
 
-public enum GameMode { Classic, Physics } // ⬅️ Новый enum
 public enum GameState { Menu, Playing }
 
 public class Game1 : Game
 {
     private readonly GraphicsDeviceManager _graphics;
-    private SpriteBatch _spriteBatch = null!;
-    private SpriteFont? _font;
+    private SpriteBatch _spriteBatch;
+    private SpriteFont _font;
+    private Texture2D _whitePixel;
     private GameState _state = GameState.Menu;
-    private MenuScreen _menu = null!;
-    private GameScreen _game = null!;
+    private MenuScreen _menu;
+    private GameScreen _game;
     private MouseState _currentMouse, _prevMouse;
 
     public Game1()
@@ -32,20 +33,17 @@ public class Game1 : Game
         TargetElapsedTime = TimeSpan.FromTicks(166666);
     }
 
-    protected override void Initialize() => base.Initialize();
-
     protected override void LoadContent()
     {
         _spriteBatch = new SpriteBatch(GraphicsDevice);
+        _whitePixel = new Texture2D(GraphicsDevice, 1, 1);
+        _whitePixel.SetData(new[] { Color.White });
+
         try { _font = Content.Load<SpriteFont>("Fonts/Arial"); }
         catch { _font = null; }
 
         _menu = new MenuScreen(GraphicsDevice, _font);
-        _menu.OnPlayClicked += (mode) =>
-        {
-            _state = GameState.Playing;
-            _game.Start(mode);
-        };
+        _menu.OnPlayClicked += () => { _state = GameState.Playing; _game?.Reset(); };
         _menu.OnExitClicked += Exit;
 
         _game = new GameScreen(GraphicsDevice, _font);
@@ -53,8 +51,7 @@ public class Game1 : Game
 
     protected override void Update(GameTime gameTime)
     {
-        if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed ||
-            Keyboard.GetState().IsKeyDown(Keys.Escape))
+        if (Keyboard.GetState().IsKeyDown(Keys.Escape))
         {
             if (_state == GameState.Playing) _state = GameState.Menu;
             else Exit();
@@ -65,15 +62,11 @@ public class Game1 : Game
         bool leftClick = _currentMouse.LeftButton == ButtonState.Pressed && _prevMouse.LeftButton == ButtonState.Released;
         float dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
 
-        switch (_state)
+        if (_state == GameState.Menu) _menu?.Update(_currentMouse, leftClick);
+        else if (_state == GameState.Playing)
         {
-            case GameState.Menu:
-                _menu.Update(_currentMouse, leftClick);
-                break;
-            case GameState.Playing:
-                _game.Update(_currentMouse, leftClick);
-                _game.UpdateEffects(dt);
-                break;
+            _game?.Update(_currentMouse, leftClick);
+            _game?.UpdateEffects(dt);
         }
 
         base.Update(gameTime);
@@ -82,17 +75,10 @@ public class Game1 : Game
     protected override void Draw(GameTime gameTime)
     {
         GraphicsDevice.Clear(Color.Black);
-        _spriteBatch.Begin();
+        _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
 
-        switch (_state)
-        {
-            case GameState.Menu:
-                _menu.Draw(_spriteBatch);
-                break;
-            case GameState.Playing:
-                _game.Draw(_spriteBatch);
-                break;
-        }
+        if (_state == GameState.Menu) _menu?.Draw(_spriteBatch);
+        else if (_state == GameState.Playing) _game?.Draw(_spriteBatch);
 
         _spriteBatch.End();
         base.Draw(gameTime);

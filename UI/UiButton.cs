@@ -14,7 +14,6 @@ public class UiButton
     private bool _isHover;
     private static readonly Color HoverCol = new(60, 60, 80);
     private static readonly Color NormalCol = new(40, 40, 60);
-    private static readonly Color ActiveCol = new(80, 70, 120);
 
     public UiButton(string text, int w, int h, Vector2 pos, Action onClick)
     {
@@ -26,14 +25,14 @@ public class UiButton
     public void Update(MouseState ms) => _isHover = Bounds.Contains(ms.X, ms.Y);
     public bool Contains(int x, int y) => Bounds.Contains(x, y);
 
-    public void Draw(SpriteBatch sb, Texture2D px, SpriteFont font, bool isActive = false)
+    public void Draw(SpriteBatch sb, Texture2D px, SpriteFont font)
     {
-        Color bg = isActive ? ActiveCol : (_isHover ? HoverCol : NormalCol);
-        sb.Draw(px, Bounds, bg);
-
-        Vector2 size = font.MeasureString(Text);
-        Vector2 txtPos = new(Bounds.X + Bounds.Width / 2f - size.X / 2f, Bounds.Y + Bounds.Height / 2f - size.Y / 2f);
-        Color txtCol = isActive ? Color.Gold : (_isHover ? Color.White : new Color(200, 200, 200));
-        sb.DrawString(font, Text, txtPos, txtCol);
+        sb.Draw(px, Bounds, _isHover ? HoverCol : NormalCol);
+        if (font != null)
+        {
+            Vector2 size = font.MeasureString(Text);
+            Vector2 txtPos = new(Bounds.X + Bounds.Width / 2f - size.X / 2f, Bounds.Y + Bounds.Height / 2f - size.Y / 2f);
+            sb.DrawString(font, Text, txtPos, _isHover ? Color.Gold : Color.White);
+        }
     }
 }
