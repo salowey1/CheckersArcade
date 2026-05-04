@@ -5,12 +5,12 @@ using System.Collections.Generic;
 
 namespace CheckersArcade.GameLogic;
 
-// Класс анимации передвижения
+
 public class PieceAnimation
 {
     public Vector2 StartPos;
     public Vector2 EndPos;
-    public float Duration = 0.22f; // Длительность в секундах
+    public float Duration = 0.22f; 
     public float Timer = 0f;
     public bool IsActive => Timer < Duration;
 
@@ -19,7 +19,7 @@ public class PieceAnimation
         get
         {
             float t = Math.Min(Timer / Duration, 1f);
-            return t * t * (3f - 2f * t); // Smoothstep: разгон и плавное торможение
+            return t * t * (3f - 2f * t); 
         }
     }
     public Vector2 CurrentPos => Vector2.Lerp(StartPos, EndPos, SmoothProgress);
@@ -72,12 +72,10 @@ public class Board
         }
     }
 
-    // Возвращает визуальный центр клетки (учитывает анимацию)
     public Vector2 GetVisualPieceCenter(int x, int y)
     {
         if (CurrentAnimation?.IsActive == true && CurrentAnimation.EndPos != Vector2.Zero)
         {
-            // Если это целевая клетка текущей анимации
             float targetX = OffsetX + x * CellSize + CellSize / 2f;
             float targetY = OffsetY + y * CellSize + CellSize / 2f;
             if (Math.Abs(targetX - CurrentAnimation.EndPos.X) < 1f &&
@@ -163,11 +161,9 @@ public class Board
     {
         bool isCapture = Math.Abs(tx - fx) == 2;
 
-        // Логически двигаем мгновенно (сохраняем отзывчивость)
         _grid[tx, ty] = _grid[fx, fy];
         _grid[fx, fy] = null;
 
-        // Запускаем визуальную анимацию
         CurrentAnimation = new PieceAnimation
         {
             StartPos = new Vector2(OffsetX + fx * CellSize + CellSize / 2f, OffsetY + fy * CellSize + CellSize / 2f),
