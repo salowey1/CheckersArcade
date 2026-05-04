@@ -41,8 +41,8 @@ public class MenuScreen
         sb.Draw(_whitePixel, new Rectangle((int)_center.X - 160, 120, 320, 200), new Color(20, 20, 30));
         if (_font != null)
         {
-            Vector2 titleSize = _font.MeasureString("АРКАДНЫЕ ШАШКИ");
-            sb.DrawString(_font, "АРКАДНЫЕ ШАШКИ", new Vector2(_center.X - titleSize.X / 2, 140), Color.Gold);
+            Vector2 titleSize = _font.MeasureString("ШАШКИ");
+            sb.DrawString(_font, "ШАШКИ", new Vector2(_center.X - titleSize.X / 2, 140), Color.Gold);
         }
         foreach (var btn in _buttons) btn.Draw(sb, _whitePixel, _font);
     }
