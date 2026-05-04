@@ -1,9 +1,10 @@
-#nullable disable
+Ôªø#nullable disable
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using System;
 using System.Collections.Generic;
+using CheckersArcade; // ‚¨ÖÔ∏è –ß—Ç–æ–±—ã –≤–∏–¥–µ—Ç—å enum GameMode
 
 namespace CheckersArcade.UI;
 
@@ -12,23 +13,23 @@ public class MenuScreen
     private readonly List<UiButton> _buttons = new();
     private readonly Vector2 _center;
     private Texture2D _whitePixel;
-    private SpriteFont? _font;
+    private SpriteFont _font;
     private GameMode _selectedMode = GameMode.Classic;
 
     public event Action<GameMode>? OnPlayClicked;
     public event Action? OnExitClicked;
 
-    public MenuScreen(GraphicsDevice gd, SpriteFont? font)
+    public MenuScreen(GraphicsDevice gd, SpriteFont font)
     {
         _font = font;
         _whitePixel = new Texture2D(gd, 1, 1);
         _whitePixel.SetData(new[] { Color.White });
         _center = new Vector2(gd.Viewport.Width / 2f, 250);
 
-        _buttons.Add(new UiButton(" À¿——» ¿", 250, 50, _center + new Vector2(0, -100), () => _selectedMode = GameMode.Classic, true));
-        _buttons.Add(new UiButton("‘»«» ¿", 250, 50, _center + new Vector2(0, -30), () => _selectedMode = GameMode.Physics, true));
-        _buttons.Add(new UiButton("»√–¿“‹", 250, 50, _center + new Vector2(0, 60), () => OnPlayClicked?.Invoke(_selectedMode)));
-        _buttons.Add(new UiButton("¬€’Œƒ", 250, 50, _center + new Vector2(0, 130), () => OnExitClicked?.Invoke()));
+        _buttons.Add(new UiButton("–ö–õ–ê–°–°–ò–ö–ê", 250, 50, _center + new Vector2(0, -100), () => _selectedMode = GameMode.Classic));
+        _buttons.Add(new UiButton("–§–ò–ó–ò–ö–ê", 250, 50, _center + new Vector2(0, -30), () => _selectedMode = GameMode.Physics));
+        _buttons.Add(new UiButton("–ò–ì–†–ê–¢–¨", 250, 50, _center + new Vector2(0, 60), () => OnPlayClicked?.Invoke(_selectedMode)));
+        _buttons.Add(new UiButton("–í–´–•–û–î", 250, 50, _center + new Vector2(0, 130), () => OnExitClicked?.Invoke()));
     }
 
     public void Update(MouseState mouse, bool isLeftClick)
@@ -45,53 +46,15 @@ public class MenuScreen
         sb.Draw(_whitePixel, new Rectangle((int)_center.X - 150, 140, 300, 4), Color.Gold);
         sb.Draw(_whitePixel, new Rectangle((int)_center.X - 150, 150, 300, 4), Color.Gold);
 
-        if (_font != null)
-        {
-            Vector2 titleSize = _font.MeasureString("¿– ¿ƒÕ€≈ ÿ¿ÿ »");
-            sb.DrawString(_font, "¿– ¿ƒÕ€≈ ÿ¿ÿ »", new Vector2(_center.X - titleSize.X / 2, 160), Color.Gold);
-            sb.DrawString(_font, "¬˚·ÂË ÂÊËÏ:", new Vector2(_center.X - 80, 120), Color.Gray);
-        }
+        Vector2 titleSize = _font.MeasureString("–ê–†–ö–ê–î–ù–´–ï –®–ê–®–ö–ò");
+        sb.DrawString(_font, "–ê–†–ö–ê–î–ù–´–ï –®–ê–®–ö–ò", new Vector2(_center.X - titleSize.X / 2, 160), Color.Gold);
+        sb.DrawString(_font, "–í—ã–±–µ—Ä–∏ —Ä–µ–∂–∏–º:", new Vector2(_center.X - 80, 120), Color.Gray);
 
         foreach (var btn in _buttons)
         {
-            bool isActiveMode = (btn.Text == " À¿——» ¿" && _selectedMode == GameMode.Classic) ||
-                                (btn.Text == "‘»«» ¿" && _selectedMode == GameMode.Physics);
+            bool isActiveMode = (btn.Text == "–ö–õ–ê–°–°–ò–ö–ê" && _selectedMode == GameMode.Classic) ||
+                                (btn.Text == "–§–ò–ó–ò–ö–ê" && _selectedMode == GameMode.Physics);
             btn.Draw(sb, _whitePixel, _font, isActiveMode);
-        }
-    }
-}
-
-// ¬ÒÔÓÏÓ„‡ÚÂÎ¸Ì˚È ÍÎ‡ÒÒ ÍÌÓÔÍË (‰Ó·‡‚ÎÂÌ Ô‡‡ÏÂÚ isModeSelector ‰Îˇ ÔÓ‰Ò‚ÂÚÍË)
-public class UiButton
-{
-    public Rectangle Bounds;
-    public string Text { get; }
-    public Action? OnClick { get; }
-    private bool _isHover;
-    private static readonly Color HoverCol = new(60, 60, 80);
-    private static readonly Color NormalCol = new(40, 40, 60);
-    private static readonly Color ActiveCol = new(80, 70, 120); // œÓ‰Ò‚ÂÚÍ‡ ‚˚·‡ÌÌÓ„Ó ÂÊËÏ‡
-
-    public UiButton(string text, int w, int h, Vector2 pos, Action onClick)
-    {
-        Text = text;
-        Bounds = new Rectangle((int)pos.X - w / 2, (int)pos.Y - h / 2, w, h);
-        OnClick = onClick;
-    }
-
-    public void Update(MouseState ms) => _isHover = Bounds.Contains(ms.X, ms.Y);
-    public bool Contains(int x, int y) => Bounds.Contains(x, y);
-
-    public void Draw(SpriteBatch sb, Texture2D px, SpriteFont? font, bool isActive = false)
-    {
-        Color bg = isActive ? ActiveCol : (_isHover ? HoverCol : NormalCol);
-        sb.Draw(px, Bounds, bg);
-        if (font != null)
-        {
-            Vector2 size = font.MeasureString(Text);
-            Vector2 txtPos = new(Bounds.X + Bounds.Width / 2f - size.X / 2f, Bounds.Y + Bounds.Height / 2f - size.Y / 2f);
-            Color txtCol = isActive ? Color.Gold : (_isHover ? Color.White : new Color(200, 200, 200));
-            sb.DrawString(font, Text, txtPos, txtCol);
         }
     }
 }
