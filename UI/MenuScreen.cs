@@ -14,8 +14,8 @@ public class MenuScreen
     private Texture2D _whitePixel;
     private SpriteFont _font;
 
-    public event Action? OnPlayClicked;
-    public event Action? OnExitClicked;
+    public event Action OnPlayClicked;
+    public event Action OnExitClicked;
 
     public MenuScreen(GraphicsDevice gd, SpriteFont font)
     {

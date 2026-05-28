@@ -10,7 +10,7 @@ public class UiButton
 {
     public Rectangle Bounds;
     public string Text { get; }
-    public Action? OnClick { get; }
+    public Action OnClick { get; }
     private bool _isHover;
     private static readonly Color HoverCol = new(60, 60, 80);
     private static readonly Color NormalCol = new(40, 40, 60);
