@@ -12,7 +12,6 @@ public class CheckerPiece
     public int GridX { get; set; }
     public int GridY { get; set; }
 
-    // Visual/arcade state. Rules use GridX/GridY; the view uses VisualPosition.
     public Vector2 VisualPosition { get; set; }
     public Vector2 Velocity { get; set; }
     public bool IsSliding { get; set; }
