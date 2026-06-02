@@ -15,6 +15,4 @@ public class CheckerPiece
     public Vector2 VisualPosition { get; set; }
     public Vector2 Velocity { get; set; }
     public bool IsSliding { get; set; }
-
-    public bool IsRed => Side == PieceSide.Red;
 }

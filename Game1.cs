@@ -9,19 +9,17 @@ using CheckersArcade.UI;
 
 namespace CheckersArcade;
 
-public enum GameState
-{
-    Menu,
-    Playing
-}
-
 public class Game1 : Game
 {
+    private const int MinWindowWidth = 720;
+    private const int MinWindowHeight = 620;
+
     private readonly GraphicsDeviceManager _graphics;
     private SpriteBatch _spriteBatch;
     private SpriteFont _font;
+    private bool _isApplyingWindowSize;
 
-    private GameState _state = GameState.Menu;
+    private ScreenState _state = ScreenState.Menu;
     private MenuScreen _menu;
     private GameScreen _game;
 
@@ -40,6 +38,8 @@ public class Game1 : Game
 
         Content.RootDirectory = "Content";
         IsMouseVisible = true;
+        Window.AllowUserResizing = true;
+        Window.ClientSizeChanged += OnClientSizeChanged;
         IsFixedTimeStep = true;
         TargetElapsedTime = TimeSpan.FromSeconds(1.0 / 60.0);
     }
@@ -60,7 +60,7 @@ public class Game1 : Game
         _menu = new MenuScreen(GraphicsDevice, _font);
         _menu.OnPlayClicked += boardSize =>
         {
-            _state = GameState.Playing;
+            _state = ScreenState.Playing;
             _game?.Reset(boardSize);
         };
         _menu.OnExitClicked += Exit;
@@ -70,37 +70,20 @@ public class Game1 : Game
 
     protected override void Update(GameTime gameTime)
     {
-        _previousKeyboard = _currentKeyboard;
-        _currentKeyboard = Keyboard.GetState();
+        ReadInput();
+        HandleEscape();
 
-        if (IsKeyPressed(Keys.Escape))
-        {
-            if (_state == GameState.Playing)
-            {
-                _state = GameState.Menu;
-            }
-            else
-            {
-                Exit();
-            }
-        }
+        bool leftClick = IsLeftClickPressed();
+        float deltaSeconds = GetDeltaSeconds(gameTime);
 
-        _previousMouse = _currentMouse;
-        _currentMouse = Mouse.GetState();
-
-        bool leftClick = _currentMouse.LeftButton == ButtonState.Pressed &&
-                         _previousMouse.LeftButton == ButtonState.Released;
-
-        float deltaSeconds = (float)gameTime.ElapsedGameTime.TotalSeconds;
-
-        if (_state == GameState.Menu)
+        if (_state == ScreenState.Menu)
         {
             _menu?.Update(_currentMouse, leftClick);
         }
-        else if (_state == GameState.Playing)
+        else
         {
-            _game?.Update(_currentMouse, leftClick);
-            _game?.UpdateEffects(deltaSeconds);
+            _game?.HandleInput(_currentMouse, leftClick);
+            _game?.Update(deltaSeconds);
         }
 
         base.Update(gameTime);
@@ -112,11 +95,11 @@ public class Game1 : Game
 
         _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
 
-        if (_state == GameState.Menu)
+        if (_state == ScreenState.Menu)
         {
             _menu?.Draw(_spriteBatch);
         }
-        else if (_state == GameState.Playing)
+        else
         {
             _game?.Draw(_spriteBatch);
         }
@@ -128,4 +111,65 @@ public class Game1 : Game
 
     private bool IsKeyPressed(Keys key) =>
         _currentKeyboard.IsKeyDown(key) && _previousKeyboard.IsKeyUp(key);
+
+    private void ReadInput()
+    {
+        _previousKeyboard = _currentKeyboard;
+        _currentKeyboard = Keyboard.GetState();
+
+        _previousMouse = _currentMouse;
+        _currentMouse = Mouse.GetState();
+    }
+
+    private void HandleEscape()
+    {
+        if (!IsKeyPressed(Keys.Escape))
+        {
+            return;
+        }
+
+        if (_state == ScreenState.Playing)
+        {
+            _state = ScreenState.Menu;
+            return;
+        }
+
+        Exit();
+    }
+
+    private bool IsLeftClickPressed() =>
+        _currentMouse.LeftButton == ButtonState.Pressed &&
+        _previousMouse.LeftButton == ButtonState.Released;
+
+    private static float GetDeltaSeconds(GameTime gameTime) =>
+        (float)gameTime.ElapsedGameTime.TotalSeconds;
+
+    private void OnClientSizeChanged(object sender, EventArgs e)
+    {
+        if (_isApplyingWindowSize)
+        {
+            return;
+        }
+
+        int width = Math.Max(MinWindowWidth, Window.ClientBounds.Width);
+        int height = Math.Max(MinWindowHeight, Window.ClientBounds.Height);
+
+        if (width != Window.ClientBounds.Width || height != Window.ClientBounds.Height)
+        {
+            _isApplyingWindowSize = true;
+            _graphics.PreferredBackBufferWidth = width;
+            _graphics.PreferredBackBufferHeight = height;
+            _graphics.ApplyChanges();
+            _isApplyingWindowSize = false;
+        }
+
+        _menu?.Resize(width, height);
+        _game?.Resize(width, height);
+    }
+
+    private enum ScreenState
+    {
+        Menu,
+        Playing
+    }
 }

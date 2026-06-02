@@ -13,20 +13,20 @@ public class CheckersBoardModel
     private readonly CheckersRules _rules = new();
     private readonly SlidingPhysicsModel _sliding = new();
 
-    private bool _chainCaptureActive;
-    private CheckerPiece _pendingCapturePiece;
-    private bool _pendingCaptureResolution;
+    private bool _shouldEndTurnAfterCapture;
 
     public PieceSide CurrentTurn { get; private set; } = PieceSide.Red;
     public Point? SelectedCell { get; private set; }
     public IReadOnlyList<Point> ValidMoves => _validMoves;
 
-    public bool IsRedTurn => CurrentTurn == PieceSide.Red;
-    public bool IsChainCaptureActive => _chainCaptureActive;
+    public bool IsGameOver { get; private set; }
+    public PieceSide? Winner { get; private set; }
     public bool IsSlidingActive => _sliding.IsActive;
     public bool IsAnimating => CurrentAnimation?.IsActive == true;
     public bool IsBusy => IsAnimating || IsSlidingActive;
     public PieceAnimation CurrentAnimation { get; private set; }
+
+    public event Action<Vector2> PieceCaptured;
 
     public CheckersBoardModel() => Reset();
 
@@ -57,11 +57,11 @@ public class CheckersBoardModel
 
         CurrentTurn = PieceSide.Red;
         ClearSelection();
-        _chainCaptureActive = false;
         _sliding.Reset();
-        _pendingCapturePiece = null;
-        _pendingCaptureResolution = false;
+        _shouldEndTurnAfterCapture = false;
         CurrentAnimation = null;
+        IsGameOver = false;
+        Winner = null;
     }
 
     public void Update(float deltaSeconds)
@@ -82,9 +82,9 @@ public class CheckersBoardModel
             ApplySlidingSnap(snapAssignments);
         }
 
-        if (!IsBusy && _pendingCaptureResolution)
+        if (!IsBusy && _shouldEndTurnAfterCapture)
         {
-            ResolvePendingCapture();
+            FinishCaptureMove();
         }
     }
 
@@ -101,7 +101,7 @@ public class CheckersBoardModel
     public bool CanSelect(Point cell)
     {
         CheckerPiece piece = GetPiece(cell);
-        return !IsBusy && piece != null && piece.Side == CurrentTurn;
+        return !IsGameOver && !IsBusy && piece != null && piece.Side == CurrentTurn;
     }
 
     public bool SelectPiece(Point cell)
@@ -127,13 +127,13 @@ public class CheckersBoardModel
 
     public bool TryMoveSelectedPiece(Point target)
     {
-        if (IsBusy || SelectedCell == null || !BoardLayout.IsInside(target) || !_validMoves.Contains(target))
+        if (IsGameOver || IsBusy || SelectedCell == null || !BoardLayout.IsInside(target) || !_validMoves.Contains(target))
         {
             return false;
         }
 
         Point from = SelectedCell.Value;
-        ExecuteMove(from.X, from.Y, target.X, target.Y);
+        ExecuteMove(from, target);
         return true;
     }
 
@@ -141,6 +141,28 @@ public class CheckersBoardModel
     {
         SelectedCell = null;
         _validMoves.Clear();
+    }
+
+    public void ResetVisualPositions()
+    {
+        CurrentAnimation = null;
+        _sliding.Reset();
+
+        for (int y = 0; y < BoardLayout.BoardSize; y++)
+        {
+            for (int x = 0; x < BoardLayout.BoardSize; x++)
+            {
+                CheckerPiece piece = _grid[x, y];
+                if (piece == null)
+                {
+                    continue;
+                }
+
+                piece.VisualPosition = BoardLayout.CellToWorldCenter(x, y);
+                piece.Velocity = Vector2.Zero;
+                piece.IsSliding = false;
+            }
+        }
     }
 
     private void PlaceNewPiece(int x, int y, PieceSide side)
@@ -157,106 +179,153 @@ public class CheckersBoardModel
         };
     }
 
-    private void ExecuteMove(int fromX, int fromY, int toX, int toY)
+    private void ExecuteMove(Point from, Point to)
     {
-        if (!BoardLayout.IsInside(fromX, fromY) ||
-            !BoardLayout.IsInside(toX, toY) ||
-            !BoardLayout.IsDarkCell(toX, toY))
+        if (!CanMoveToCell(from, to, out CheckerPiece piece))
         {
             ClearSelection();
             return;
         }
 
-        CheckerPiece piece = _grid[fromX, fromY];
-        if (piece == null)
-        {
-            ClearSelection();
-            return;
-        }
-
-        if (_grid[toX, toY] != null)
-        {
-            ClearSelection();
-            return;
-        }
-
-        Point? capturedCell = _rules.FindCapturedCell(_grid, fromX, fromY, toX, toY, piece);
-        bool isCapture = capturedCell.HasValue;
+        Point? capturedCell = _rules.FindCapturedCell(_grid, from.X, from.Y, to.X, to.Y, piece);
         CheckerPiece captured = null;
 
-        if (isCapture)
+        if (capturedCell.HasValue && !TryGetCapturedPiece(capturedCell.Value, piece, out captured))
         {
-            Point cell = capturedCell.Value;
-            captured = GetPiece(cell);
-            if (captured == null || captured.Side == piece.Side)
-            {
-                ClearSelection();
-                return;
-            }
+            ClearSelection();
+            return;
         }
 
-        _grid[toX, toY] = piece;
-        _grid[fromX, fromY] = null;
-        piece.GridX = toX;
-        piece.GridY = toY;
+        MovePiece(piece, from, to);
+        StartMoveAnimation(piece, to);
+        ClearSelection();
 
+        if (capturedCell.HasValue)
+        {
+            CapturePiece(capturedCell.Value, captured, piece);
+            return;
+        }
+
+        CompleteNormalMove(piece);
+    }
+
+    private bool CanMoveToCell(Point from, Point to, out CheckerPiece piece)
+    {
+        piece = null;
+
+        if (!BoardLayout.IsInside(from) || !BoardLayout.IsInside(to) || !BoardLayout.IsDarkCell(to))
+        {
+            return false;
+        }
+
+        piece = _grid[from.X, from.Y];
+        return piece != null && _grid[to.X, to.Y] == null;
+    }
+
+    private bool TryGetCapturedPiece(Point capturedCell, CheckerPiece movingPiece, out CheckerPiece captured)
+    {
+        captured = GetPiece(capturedCell);
+        return captured != null && captured.Side != movingPiece.Side;
+    }
+
+    private void MovePiece(CheckerPiece piece, Point from, Point to)
+    {
+        _grid[to.X, to.Y] = piece;
+        _grid[from.X, from.Y] = null;
+        piece.GridX = to.X;
+        piece.GridY = to.Y;
+    }
+
+    private void StartMoveAnimation(CheckerPiece piece, Point target)
+    {
         CurrentAnimation = new PieceAnimation
         {
             Piece = piece,
             StartPosition = piece.VisualPosition,
-            EndPosition = BoardLayout.CellToWorldCenter(toX, toY),
+            EndPosition = BoardLayout.CellToWorldCenter(target),
             Duration = 0.22f
         };
+    }
 
-        ClearSelection();
+    private void CapturePiece(Point capturedCell, CheckerPiece capturedPiece, CheckerPiece movingPiece)
+    {
+        _grid[capturedCell.X, capturedCell.Y] = null;
 
-        if (isCapture)
-        {
-            Point cell = capturedCell.Value;
-            _grid[cell.X, cell.Y] = null;
+        Vector2 epicenter = capturedPiece.VisualPosition;
+        PieceCaptured?.Invoke(epicenter);
+        StartSliding(epicenter, movingPiece);
 
-            Vector2 epicenter = captured.VisualPosition;
-            StartSliding(epicenter, piece);
+        _rules.PromoteIfNeeded(movingPiece);
+        _shouldEndTurnAfterCapture = true;
+    }
 
-            _rules.PromoteIfNeeded(piece);
-            _pendingCapturePiece = piece;
-            _pendingCaptureResolution = true;
-            return;
-        }
-
+    private void CompleteNormalMove(CheckerPiece piece)
+    {
         _rules.PromoteIfNeeded(piece);
         EndTurn();
     }
 
-    private void ResolvePendingCapture()
+    private void FinishCaptureMove()
     {
-        _pendingCaptureResolution = false;
-
-        CheckerPiece piece = _pendingCapturePiece;
-        _pendingCapturePiece = null;
-
-        if (piece != null && GetPiece(piece.GridX, piece.GridY) == piece)
-        {
-            List<Point> captures = _rules.GetCaptures(_grid, piece.GridX, piece.GridY);
-            if (captures.Count > 0)
-            {
-                SelectedCell = new Point(piece.GridX, piece.GridY);
-                _validMoves.Clear();
-                _validMoves.AddRange(captures);
-                _chainCaptureActive = true;
-                return;
-            }
-        }
+        _shouldEndTurnAfterCapture = false;
 
         EndTurn();
     }
 
     private void EndTurn()
     {
-        _chainCaptureActive = false;
         ClearSelection();
         CurrentTurn = CurrentTurn == PieceSide.Red ? PieceSide.Blue : PieceSide.Red;
+        UpdateGameOverState();
     }
+
+    private void UpdateGameOverState()
+    {
+        if (!HasAnyPiece(PieceSide.Red))
+        {
+            FinishGame(PieceSide.Blue);
+            return;
+        }
+
+        if (!HasAnyPiece(PieceSide.Blue))
+        {
+            FinishGame(PieceSide.Red);
+            return;
+        }
+
+        if (!_rules.HasAnyMove(_grid, CurrentTurn))
+        {
+            FinishGame(GetOppositeSide(CurrentTurn));
+        }
+    }
+
+    private void FinishGame(PieceSide winner)
+    {
+        IsGameOver = true;
+        Winner = winner;
+        _shouldEndTurnAfterCapture = false;
+        ClearSelection();
+    }
+
+    private bool HasAnyPiece(PieceSide side)
+    {
+        for (int y = 0; y < BoardLayout.BoardSize; y++)
+        {
+            for (int x = 0; x < BoardLayout.BoardSize; x++)
+            {
+                CheckerPiece piece = _grid[x, y];
+                if (piece != null && piece.Side == side)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static PieceSide GetOppositeSide(PieceSide side) =>
+        side == PieceSide.Red ? PieceSide.Blue : PieceSide.Red;
 
     private void StartSliding(Vector2 epicenter, CheckerPiece eater)
     {

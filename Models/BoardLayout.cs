@@ -22,12 +22,14 @@ public static class BoardLayout
     {
         BoardSize = ClampBoardSize(boardSize);
 
-        int maxBoardPixels = Math.Min(screenWidth - 80, screenHeight - 100);
+        int safeWidth = Math.Max(360, screenWidth);
+        int safeHeight = Math.Max(360, screenHeight);
+        int maxBoardPixels = Math.Max(160, Math.Min(safeWidth - 80, safeHeight - 100));
         CellSize = Math.Max(32, Math.Min(80, maxBoardPixels / BoardSize));
 
         int boardPixels = BoardSize * CellSize;
-        OffsetX = Math.Max(20, (screenWidth - boardPixels) / 2);
-        OffsetY = Math.Max(70, (screenHeight - boardPixels) / 2 + 10);
+        OffsetX = Math.Max(20, (safeWidth - boardPixels) / 2);
+        OffsetY = Math.Max(70, (safeHeight - boardPixels) / 2 + 10);
     }
 
     public static int ClampBoardSize(int boardSize)

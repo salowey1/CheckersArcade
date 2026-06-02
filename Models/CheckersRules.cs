@@ -23,12 +23,20 @@ public sealed class CheckersRules
             return new List<Point>();
         }
 
-        return HasAnyCapture(grid, turn)
-            ? GetCaptures(grid, cell.X, cell.Y)
-            : GetAllMoves(grid, cell.X, cell.Y);
+        List<Point> moves = GetSimpleMoves(grid, cell.X, cell.Y);
+
+        foreach (Point capture in GetCaptures(grid, cell.X, cell.Y))
+        {
+            if (!moves.Contains(capture))
+            {
+                moves.Add(capture);
+            }
+        }
+
+        return moves;
     }
 
-    public List<Point> GetAllMoves(CheckerPiece[,] grid, int x, int y)
+    public List<Point> GetSimpleMoves(CheckerPiece[,] grid, int x, int y)
     {
         List<Point> moves = new();
         CheckerPiece piece = GetPiece(grid, x, y);
@@ -108,14 +116,24 @@ public sealed class CheckersRules
         return captures;
     }
 
-    public bool HasAnyCapture(CheckerPiece[,] grid, PieceSide side)
+    public bool HasAnyMove(CheckerPiece[,] grid, PieceSide side)
     {
+        if (grid == null)
+        {
+            return false;
+        }
+
         for (int y = 0; y < BoardLayout.BoardSize; y++)
         {
             for (int x = 0; x < BoardLayout.BoardSize; x++)
             {
                 CheckerPiece piece = grid[x, y];
-                if (piece != null && piece.Side == side && GetCaptures(grid, x, y).Count > 0)
+                if (piece == null || piece.Side != side)
+                {
+                    continue;
+                }
+
+                if (GetCaptures(grid, x, y).Count > 0 || GetSimpleMoves(grid, x, y).Count > 0)
                 {
                     return true;
                 }

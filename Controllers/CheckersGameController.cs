@@ -22,7 +22,7 @@ public class CheckersGameController
 
     public void HandleMouse(MouseState mouse, bool isLeftClick)
     {
-        if (!isLeftClick || _board.IsBusy)
+        if (!isLeftClick || _board.IsBusy || _board.IsGameOver)
         {
             return;
         }
@@ -37,12 +37,6 @@ public class CheckersGameController
 
     private void HandleBoardClick(Point clickedCell)
     {
-        if (_board.IsChainCaptureActive)
-        {
-            _board.TryMoveSelectedPiece(clickedCell);
-            return;
-        }
-
         if (_board.SelectedCell != null && _board.TryMoveSelectedPiece(clickedCell))
         {
             return;

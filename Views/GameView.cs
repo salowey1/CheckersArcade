@@ -1,6 +1,7 @@
 #nullable disable
 
 using System;
+using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using CheckersArcade.Models;
@@ -9,14 +10,20 @@ namespace CheckersArcade.Views;
 
 public class GameView
 {
+    private const int MaxCaptureEffects = 8;
+    private const int CaptureEffectRayCount = 8;
+
     private readonly CheckersBoardModel _board;
     private readonly Texture2D _whitePixel;
     private readonly SpriteFont _font;
+    private readonly GraphicsDevice _graphicsDevice;
+    private readonly List<CaptureEffect> _captureEffects = new();
 
     public GameView(GraphicsDevice graphicsDevice, SpriteFont font, CheckersBoardModel board)
     {
         _font = font;
         _board = board;
+        _graphicsDevice = graphicsDevice;
 
         _whitePixel = new Texture2D(graphicsDevice, 1, 1);
         _whitePixel.SetData(new[] { Color.White });
@@ -25,7 +32,42 @@ public class GameView
     public void Draw(SpriteBatch spriteBatch)
     {
         DrawBoard(spriteBatch);
+        DrawCaptureEffects(spriteBatch);
         DrawHud(spriteBatch);
+    }
+
+    public void Update(float deltaSeconds)
+    {
+        float dt = ClampDelta(deltaSeconds);
+
+        for (int i = _captureEffects.Count - 1; i >= 0; i--)
+        {
+            _captureEffects[i].Age += dt;
+            if (_captureEffects[i].Age >= CaptureEffect.Duration)
+            {
+                _captureEffects.RemoveAt(i);
+            }
+        }
+    }
+
+    public void PlayCaptureEffect(Vector2 center)
+    {
+        if (!IsFinite(center))
+        {
+            return;
+        }
+
+        if (_captureEffects.Count >= MaxCaptureEffects)
+        {
+            _captureEffects.RemoveAt(0);
+        }
+
+        _captureEffects.Add(new CaptureEffect { Center = center });
+    }
+
+    public void ClearEffects()
+    {
+        _captureEffects.Clear();
     }
 
     private void DrawBoard(SpriteBatch spriteBatch)
@@ -99,6 +141,30 @@ public class GameView
         }
     }
 
+    private void DrawCaptureEffects(SpriteBatch spriteBatch)
+    {
+        foreach (CaptureEffect effect in _captureEffects)
+        {
+            float progress = MathHelper.Clamp(effect.Age / CaptureEffect.Duration, 0f, 1f);
+            float alpha = 1f - progress;
+            float radius = BoardLayout.PieceRadius * (0.35f + progress * 1.55f);
+            float rayLength = BoardLayout.PieceRadius * (0.55f + progress * 1.35f);
+            Color ringColor = Color.OrangeRed * alpha;
+            Color rayColor = Color.Gold * alpha;
+
+            DrawCircleOutline(spriteBatch, effect.Center, radius, ringColor, Math.Max(1f, 4f * alpha));
+
+            for (int i = 0; i < CaptureEffectRayCount; i++)
+            {
+                float angle = MathHelper.TwoPi * i / CaptureEffectRayCount;
+                Vector2 direction = new(MathF.Cos(angle), MathF.Sin(angle));
+                Vector2 start = effect.Center + direction * (BoardLayout.PieceRadius * 0.25f);
+                Vector2 end = effect.Center + direction * rayLength;
+                DrawLine(spriteBatch, start, end, Math.Max(1f, 3f * alpha), rayColor);
+            }
+        }
+    }
+
     private void DrawHud(SpriteBatch spriteBatch)
     {
         if (_font == null)
@@ -106,22 +172,47 @@ public class GameView
             return;
         }
 
-        string turnText = _board.CurrentTurn == PieceSide.Red ? "Turn: RED" : "Turn: BLUE";
+        string turnText = _board.CurrentTurn == PieceSide.Red ? "Ход: красные" : "Ход: синие";
         Color textColor = Color.White;
 
-        if (_board.IsSlidingActive)
+        if (_board.IsGameOver)
         {
-            turnText = "Pieces are sliding";
+            turnText = _board.Winner == PieceSide.Red ? "Игра окончена: победили красные" : "Игра окончена: победили синие";
+            textColor = Color.Gold;
+        }
+        else if (_board.IsSlidingActive)
+        {
+            turnText = "Шашки скользят";
             textColor = Color.LightSkyBlue;
         }
-        else if (_board.IsChainCaptureActive)
+        float scale = GetHudScale(turnText);
+        Vector2 firstLine = new(16f * scale, 16f * scale);
+        Vector2 secondLine = new(firstLine.X, firstLine.Y + (_font.LineSpacing + 4f) * scale);
+
+        DrawHudText(spriteBatch, turnText, firstLine, textColor, scale);
+        DrawHudText(spriteBatch, "ESC - меню", secondLine, Color.Gray, scale);
+    }
+
+    private float GetHudScale(string text)
+    {
+        int width = Math.Max(1, _graphicsDevice.Viewport.Width);
+        int height = Math.Max(1, _graphicsDevice.Viewport.Height);
+
+        float scale = MathHelper.Clamp(Math.Min(width / 1024f, height / 768f), 0.7f, 1f);
+        float maxTextWidth = Math.Max(120f, width - 32f);
+        float measuredWidth = _font.MeasureString(text).X * scale;
+
+        if (measuredWidth > maxTextWidth)
         {
-            turnText = "Chain capture: continue with the same piece";
-            textColor = Color.Yellow;
+            scale *= maxTextWidth / measuredWidth;
         }
 
-        spriteBatch.DrawString(_font, turnText, new Vector2(20, 20), textColor);
-        spriteBatch.DrawString(_font, "ESC - Menu", new Vector2(20, 45), Color.Gray);
+        return MathHelper.Clamp(scale, 0.55f, 1f);
+    }
+
+    private void DrawHudText(SpriteBatch spriteBatch, string text, Vector2 position, Color color, float scale)
+    {
+        spriteBatch.DrawString(_font, text, position, color, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
     }
 
     private void DrawKingMark(SpriteBatch spriteBatch, Vector2 center)
@@ -190,4 +281,22 @@ public class GameView
     private static bool IsFinite(Vector2 value) =>
         !(float.IsNaN(value.X) || float.IsNaN(value.Y) ||
           float.IsInfinity(value.X) || float.IsInfinity(value.Y));
+
+    private static float ClampDelta(float deltaSeconds)
+    {
+        if (float.IsNaN(deltaSeconds) || float.IsInfinity(deltaSeconds) || deltaSeconds < 0f)
+        {
+            return 0f;
+        }
+
+        return Math.Min(deltaSeconds, 0.05f);
+    }
+
+    private sealed class CaptureEffect
+    {
+        public const float Duration = 0.38f;
+
+        public Vector2 Center;
+        public float Age;
+    }
 }

@@ -22,16 +22,18 @@ public class GameScreen
         _boardModel = new CheckersBoardModel();
         _controller = new CheckersGameController(_boardModel);
         _view = new GameView(graphicsDevice, font, _boardModel);
+        _boardModel.PieceCaptured += _view.PlayCaptureEffect;
     }
 
-    public void Update(MouseState mouse, bool isLeftClick)
+    public void HandleInput(MouseState mouse, bool isLeftClick)
     {
         _controller.HandleMouse(mouse, isLeftClick);
     }
 
-    public void UpdateEffects(float deltaSeconds)
+    public void Update(float deltaSeconds)
     {
         _controller.Update(deltaSeconds);
+        _view.Update(deltaSeconds);
     }
 
     public void Draw(SpriteBatch spriteBatch)
@@ -43,5 +45,13 @@ public class GameScreen
     {
         BoardLayout.Configure(boardSize, _graphicsDevice.Viewport.Width, _graphicsDevice.Viewport.Height);
         _boardModel.Reset();
+        _view.ClearEffects();
+    }
+
+    public void Resize(int screenWidth, int screenHeight)
+    {
+        BoardLayout.Configure(BoardLayout.BoardSize, screenWidth, screenHeight);
+        _boardModel.ResetVisualPositions();
+        _view.ClearEffects();
     }
 }
