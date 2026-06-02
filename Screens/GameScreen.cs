@@ -10,12 +10,15 @@ namespace CheckersArcade.Screens;
 
 public class GameScreen
 {
+    private readonly GraphicsDevice _graphicsDevice;
     private readonly CheckersBoardModel _boardModel;
     private readonly CheckersGameController _controller;
     private readonly GameView _view;
 
     public GameScreen(GraphicsDevice graphicsDevice, SpriteFont font)
     {
+        _graphicsDevice = graphicsDevice;
+        BoardLayout.Configure(BoardLayout.BoardSize, graphicsDevice.Viewport.Width, graphicsDevice.Viewport.Height);
         _boardModel = new CheckersBoardModel();
         _controller = new CheckersGameController(_boardModel);
         _view = new GameView(graphicsDevice, font, _boardModel);
@@ -36,8 +39,9 @@ public class GameScreen
         _view.Draw(spriteBatch);
     }
 
-    public void Reset()
+    public void Reset(int boardSize)
     {
+        BoardLayout.Configure(boardSize, _graphicsDevice.Viewport.Width, _graphicsDevice.Viewport.Height);
         _boardModel.Reset();
     }
 }

@@ -8,7 +8,7 @@ namespace CheckersArcade.Models;
 
 public class CheckersBoardModel
 {
-    private readonly CheckerPiece[,] _grid = new CheckerPiece[BoardLayout.BoardSize, BoardLayout.BoardSize];
+    private CheckerPiece[,] _grid;
     private readonly List<Point> _validMoves = new();
     private readonly CheckersRules _rules = new();
     private readonly SlidingPhysicsModel _sliding = new();
@@ -32,7 +32,8 @@ public class CheckersBoardModel
 
     public void Reset()
     {
-        Array.Clear(_grid, 0, _grid.Length);
+        _grid = new CheckerPiece[BoardLayout.BoardSize, BoardLayout.BoardSize];
+        int setupRows = Math.Max(1, BoardLayout.BoardSize / 2 - 1);
 
         for (int y = 0; y < BoardLayout.BoardSize; y++)
         {
@@ -43,11 +44,11 @@ public class CheckersBoardModel
                     continue;
                 }
 
-                if (y < 3)
+                if (y < setupRows)
                 {
                     PlaceNewPiece(x, y, PieceSide.Blue);
                 }
-                else if (y > 4)
+                else if (y >= BoardLayout.BoardSize - setupRows)
                 {
                     PlaceNewPiece(x, y, PieceSide.Red);
                 }

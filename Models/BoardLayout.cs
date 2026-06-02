@@ -1,18 +1,49 @@
 #nullable disable
 
+using System;
 using Microsoft.Xna.Framework;
 
 namespace CheckersArcade.Models;
 
 public static class BoardLayout
 {
-    public const int BoardSize = 8;
-    public const int CellSize = 80;
-    public const int OffsetX = 200;
-    public const int OffsetY = 40;
-    public const float PieceRadius = CellSize / 2f - 10f;
+    public const int MinBoardSize = 4;
+    public const int MaxBoardSize = 16;
+
+    public static int BoardSize { get; private set; } = 8;
+    public static int CellSize { get; private set; } = 80;
+    public static int OffsetX { get; private set; } = 200;
+    public static int OffsetY { get; private set; } = 40;
+    public static float PieceRadius => Math.Max(8f, CellSize / 2f - 6f);
 
     public static Rectangle Bounds => new(OffsetX, OffsetY, BoardSize * CellSize, BoardSize * CellSize);
+
+    public static void Configure(int boardSize, int screenWidth, int screenHeight)
+    {
+        BoardSize = ClampBoardSize(boardSize);
+
+        int maxBoardPixels = Math.Min(screenWidth - 80, screenHeight - 100);
+        CellSize = Math.Max(32, Math.Min(80, maxBoardPixels / BoardSize));
+
+        int boardPixels = BoardSize * CellSize;
+        OffsetX = Math.Max(20, (screenWidth - boardPixels) / 2);
+        OffsetY = Math.Max(70, (screenHeight - boardPixels) / 2 + 10);
+    }
+
+    public static int ClampBoardSize(int boardSize)
+    {
+        if (boardSize < MinBoardSize)
+        {
+            return MinBoardSize;
+        }
+
+        if (boardSize > MaxBoardSize)
+        {
+            return MaxBoardSize;
+        }
+
+        return boardSize % 2 == 0 ? boardSize : boardSize - 1;
+    }
 
     public static bool IsInside(int x, int y) => x >= 0 && x < BoardSize && y >= 0 && y < BoardSize;
 

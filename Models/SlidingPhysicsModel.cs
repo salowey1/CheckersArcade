@@ -20,7 +20,6 @@ public readonly struct SlidingSnap
 
 public class SlidingPhysicsModel
 {
-    private const float PushRadius = BoardLayout.CellSize * 2.5f;
     private const float PushForce = 900f;
     private const float Friction = 0.96f;
     private const float StopSpeed = 15f;
@@ -63,13 +62,14 @@ public class SlidingPhysicsModel
 
             Vector2 offset = piece.VisualPosition - center;
             float distance = offset.Length();
-            if (distance <= 1f || distance > PushRadius || float.IsNaN(distance))
+            float pushRadius = BoardLayout.CellSize * 2.5f;
+            if (distance <= 1f || distance > pushRadius || float.IsNaN(distance))
             {
                 continue;
             }
 
             Vector2 direction = offset / distance;
-            float strength = 1f - distance / PushRadius;
+            float strength = 1f - distance / pushRadius;
             piece.Velocity = direction * (PushForce * strength + 120f);
             piece.IsSliding = true;
         }

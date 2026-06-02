@@ -58,10 +58,10 @@ public class Game1 : Game
         }
 
         _menu = new MenuScreen(GraphicsDevice, _font);
-        _menu.OnPlayClicked += () =>
+        _menu.OnPlayClicked += boardSize =>
         {
             _state = GameState.Playing;
-            _game?.Reset();
+            _game?.Reset(boardSize);
         };
         _menu.OnExitClicked += Exit;
 
