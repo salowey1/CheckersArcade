@@ -178,29 +178,47 @@ public class GameView
             turnText = "Шашки скользят";
             textColor = Color.LightSkyBlue;
         }
-        float scale = GetHudScale(turnText);
+
+        string menuText = "ESC - меню";
+        string countText = $"Красн: {_board.RedPieceCount}   Син: {_board.BluePieceCount}";
+        float scale = GetHudScale(turnText, menuText + "    " + countText);
         Vector2 firstLine = new(16f * scale, 16f * scale);
         Vector2 secondLine = new(firstLine.X, firstLine.Y + (_font.LineSpacing + 4f) * scale);
+        Vector2 countSize = _font.MeasureString(countText) * scale;
+        Vector2 countLine = new(_graphicsDevice.Viewport.Width - countSize.X - 16f * scale, secondLine.Y);
 
         DrawHudText(spriteBatch, turnText, firstLine, textColor, scale);
-        DrawHudText(spriteBatch, "ESC - меню", secondLine, Color.Gray, scale);
+        DrawHudText(spriteBatch, menuText, secondLine, Color.Gray, scale);
+        DrawHudText(spriteBatch, countText, countLine, Color.LightGray, scale);
     }
 
-    private float GetHudScale(string text)
+    private float GetHudScale(params string[] texts)
     {
         int width = Math.Max(1, _graphicsDevice.Viewport.Width);
         int height = Math.Max(1, _graphicsDevice.Viewport.Height);
 
         float scale = MathHelper.Clamp(Math.Min(width / 1024f, height / 768f), 0.7f, 1f);
         float maxTextWidth = Math.Max(120f, width - 32f);
-        float measuredWidth = _font.MeasureString(text).X * scale;
+        float measuredWidth = 0f;
+
+        foreach (string text in texts)
+        {
+            measuredWidth = Math.Max(measuredWidth, _font.MeasureString(text).X * scale);
+        }
 
         if (measuredWidth > maxTextWidth)
         {
             scale *= maxTextWidth / measuredWidth;
         }
 
-        return MathHelper.Clamp(scale, 0.55f, 1f);
+        float maxHudHeight = Math.Max(40f, BoardLayout.OffsetY - 8f);
+        float hudHeight = (20f + _font.LineSpacing * 2f + 4f) * scale;
+        if (hudHeight > maxHudHeight)
+        {
+            scale *= maxHudHeight / hudHeight;
+        }
+
+        return MathHelper.Clamp(scale, 0.45f, 1f);
     }
 
     private void DrawHudText(SpriteBatch spriteBatch, string text, Vector2 position, Color color, float scale)

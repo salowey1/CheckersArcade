@@ -24,6 +24,8 @@ public class CheckersBoardModel
     public bool IsSlidingActive => _sliding.IsActive;
     public bool IsAnimating => CurrentAnimation?.IsActive == true;
     public bool IsBusy => IsAnimating || IsSlidingActive;
+    public int RedPieceCount => CountPieces(PieceSide.Red);
+    public int BluePieceCount => CountPieces(PieceSide.Blue);
     public PieceAnimation CurrentAnimation { get; private set; }
 
     public event Action<Vector2> PieceCaptured;
@@ -324,6 +326,25 @@ public class CheckersBoardModel
         }
 
         return false;
+    }
+
+    private int CountPieces(PieceSide side)
+    {
+        int count = 0;
+
+        for (int y = 0; y < BoardLayout.BoardSize; y++)
+        {
+            for (int x = 0; x < BoardLayout.BoardSize; x++)
+            {
+                CheckerPiece piece = _grid[x, y];
+                if (piece != null && piece.Side == side)
+                {
+                    count++;
+                }
+            }
+        }
+
+        return count;
     }
 
     private static PieceSide GetOppositeSide(PieceSide side) =>

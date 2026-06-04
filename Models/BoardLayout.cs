@@ -9,6 +9,7 @@ public static class BoardLayout
 {
     public const int MinBoardSize = 4;
     public const int MaxBoardSize = 16;
+    private const int TopHudHeight = 92;
 
     public static int BoardSize { get; private set; } = 8;
     public static int CellSize { get; private set; } = 80;
@@ -24,12 +25,12 @@ public static class BoardLayout
 
         int safeWidth = Math.Max(360, screenWidth);
         int safeHeight = Math.Max(360, screenHeight);
-        int maxBoardPixels = Math.Max(160, Math.Min(safeWidth - 80, safeHeight - 100));
+        int maxBoardPixels = Math.Max(160, Math.Min(safeWidth - 80, safeHeight - TopHudHeight - 28));
         CellSize = Math.Max(32, Math.Min(80, maxBoardPixels / BoardSize));
 
         int boardPixels = BoardSize * CellSize;
         OffsetX = Math.Max(20, (safeWidth - boardPixels) / 2);
-        OffsetY = Math.Max(70, (safeHeight - boardPixels) / 2 + 10);
+        OffsetY = Math.Max(TopHudHeight, (safeHeight - boardPixels) / 2 + 10);
     }
 
     public static int ClampBoardSize(int boardSize)
