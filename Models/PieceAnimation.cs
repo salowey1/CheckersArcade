@@ -17,17 +17,6 @@ public class PieceAnimation
 
     public void Update(float deltaSeconds)
     {
-        if (Piece == null || Duration <= 0f)
-        {
-            Timer = Math.Max(Timer, Duration);
-            return;
-        }
-
-        if (float.IsNaN(deltaSeconds) || float.IsInfinity(deltaSeconds) || deltaSeconds < 0f)
-        {
-            deltaSeconds = 0f;
-        }
-
         Timer += deltaSeconds;
         Piece.VisualPosition = IsActive ? CurrentPosition : EndPosition;
     }
@@ -36,11 +25,6 @@ public class PieceAnimation
     {
         get
         {
-            if (Duration <= 0f)
-            {
-                return EndPosition;
-            }
-
             float t = Math.Min(Timer / Duration, 1f);
             float smooth = t * t * (3f - 2f * t);
             return Vector2.Lerp(StartPosition, EndPosition, smooth);

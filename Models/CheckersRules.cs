@@ -15,14 +15,8 @@ public sealed class CheckersRules
         new(-1, -1), new(1, -1), new(-1, 1), new(1, 1)
     };
 
-    public List<Point> GetSelectableMoves(CheckerPiece[,] grid, Point cell, PieceSide turn)
+    public List<Point> GetSelectableMoves(CheckerPiece[,] grid, Point cell)
     {
-        CheckerPiece piece = GetPiece(grid, cell);
-        if (piece == null || piece.Side != turn)
-        {
-            return new List<Point>();
-        }
-
         List<Point> moves = GetSimpleMoves(grid, cell.X, cell.Y);
 
         foreach (Point capture in GetCaptures(grid, cell.X, cell.Y))
@@ -40,10 +34,6 @@ public sealed class CheckersRules
     {
         List<Point> moves = new();
         CheckerPiece piece = GetPiece(grid, x, y);
-        if (piece == null)
-        {
-            return moves;
-        }
 
         if (piece.IsKing)
         {
@@ -81,10 +71,6 @@ public sealed class CheckersRules
     {
         List<Point> captures = new();
         CheckerPiece piece = GetPiece(grid, x, y);
-        if (piece == null)
-        {
-            return captures;
-        }
 
         if (piece.IsKing)
         {
@@ -118,11 +104,6 @@ public sealed class CheckersRules
 
     public bool HasAnyMove(CheckerPiece[,] grid, PieceSide side)
     {
-        if (grid == null)
-        {
-            return false;
-        }
-
         for (int y = 0; y < BoardLayout.BoardSize; y++)
         {
             for (int x = 0; x < BoardLayout.BoardSize; x++)
@@ -145,21 +126,13 @@ public sealed class CheckersRules
 
     public Point? FindCapturedCell(CheckerPiece[,] grid, int fromX, int fromY, int toX, int toY, CheckerPiece movingPiece)
     {
-        if (movingPiece == null ||
-            !BoardLayout.IsInside(fromX, fromY) ||
-            !BoardLayout.IsInside(toX, toY) ||
-            Math.Abs(toX - fromX) != Math.Abs(toY - fromY))
+        if (Math.Abs(toX - fromX) != Math.Abs(toY - fromY))
         {
             return null;
         }
 
         int dx = Math.Sign(toX - fromX);
         int dy = Math.Sign(toY - fromY);
-        if (dx == 0 || dy == 0)
-        {
-            return null;
-        }
-
         Point? found = null;
         int x = fromX + dx;
         int y = fromY + dy;
@@ -186,7 +159,7 @@ public sealed class CheckersRules
 
     public void PromoteIfNeeded(CheckerPiece piece)
     {
-        if (piece == null || piece.IsKing)
+        if (piece.IsKing)
         {
             return;
         }
@@ -235,13 +208,5 @@ public sealed class CheckersRules
 
     private static CheckerPiece GetPiece(CheckerPiece[,] grid, Point cell) => GetPiece(grid, cell.X, cell.Y);
 
-    private static CheckerPiece GetPiece(CheckerPiece[,] grid, int x, int y)
-    {
-        if (grid == null || !BoardLayout.IsInside(x, y))
-        {
-            return null;
-        }
-
-        return grid[x, y];
-    }
+    private static CheckerPiece GetPiece(CheckerPiece[,] grid, int x, int y) => grid[x, y];
 }

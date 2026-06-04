@@ -38,11 +38,9 @@ public class GameView
 
     public void Update(float deltaSeconds)
     {
-        float dt = ClampDelta(deltaSeconds);
-
         for (int i = _captureEffects.Count - 1; i >= 0; i--)
         {
-            _captureEffects[i].Age += dt;
+            _captureEffects[i].Age += deltaSeconds;
             if (_captureEffects[i].Age >= CaptureEffect.Duration)
             {
                 _captureEffects.RemoveAt(i);
@@ -52,11 +50,6 @@ public class GameView
 
     public void PlayCaptureEffect(Vector2 center)
     {
-        if (!IsFinite(center))
-        {
-            return;
-        }
-
         if (_captureEffects.Count >= MaxCaptureEffects)
         {
             _captureEffects.RemoveAt(0);
@@ -223,11 +216,6 @@ public class GameView
 
     private void DrawFilledCircle(SpriteBatch spriteBatch, Vector2 center, float radius, Color color)
     {
-        if (!IsFinite(center) || radius <= 0f)
-        {
-            return;
-        }
-
         int r = Math.Max(1, (int)MathF.Ceiling(radius));
         float radiusSquared = radius * radius;
 
@@ -243,11 +231,6 @@ public class GameView
 
     private void DrawCircleOutline(SpriteBatch spriteBatch, Vector2 center, float radius, Color color, float thickness)
     {
-        if (!IsFinite(center) || radius <= 0f || thickness <= 0f)
-        {
-            return;
-        }
-
         const int segments = 32;
         float step = MathHelper.TwoPi / segments;
 
@@ -263,33 +246,9 @@ public class GameView
 
     private void DrawLine(SpriteBatch spriteBatch, Vector2 a, Vector2 b, float thickness, Color color)
     {
-        if (!IsFinite(a) || !IsFinite(b) || thickness <= 0f)
-        {
-            return;
-        }
-
         float length = Vector2.Distance(a, b);
-        if (length <= 0.5f)
-        {
-            return;
-        }
-
         float angle = MathF.Atan2(b.Y - a.Y, b.X - a.X);
         spriteBatch.Draw(_whitePixel, a, null, color, angle, Vector2.Zero, new Vector2(length, thickness), SpriteEffects.None, 0f);
-    }
-
-    private static bool IsFinite(Vector2 value) =>
-        !(float.IsNaN(value.X) || float.IsNaN(value.Y) ||
-          float.IsInfinity(value.X) || float.IsInfinity(value.Y));
-
-    private static float ClampDelta(float deltaSeconds)
-    {
-        if (float.IsNaN(deltaSeconds) || float.IsInfinity(deltaSeconds) || deltaSeconds < 0f)
-        {
-            return 0f;
-        }
-
-        return Math.Min(deltaSeconds, 0.05f);
     }
 
     private sealed class CaptureEffect

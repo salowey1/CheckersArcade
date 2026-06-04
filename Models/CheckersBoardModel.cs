@@ -66,18 +66,16 @@ public class CheckersBoardModel
 
     public void Update(float deltaSeconds)
     {
-        float dt = ClampDelta(deltaSeconds);
-
         if (CurrentAnimation?.IsActive == true)
         {
-            CurrentAnimation.Update(dt);
+            CurrentAnimation.Update(deltaSeconds);
             if (!CurrentAnimation.IsActive)
             {
                 CurrentAnimation = null;
             }
         }
 
-        if (!IsAnimating && _sliding.Update(dt, GetPieces(), out List<SlidingSnap> snapAssignments))
+        if (!IsAnimating && _sliding.Update(deltaSeconds, GetPieces(), out List<SlidingSnap> snapAssignments))
         {
             ApplySlidingSnap(snapAssignments);
         }
@@ -94,8 +92,7 @@ public class CheckersBoardModel
 
     public Vector2 GetPieceVisualCenter(int x, int y)
     {
-        CheckerPiece piece = GetPiece(x, y);
-        return piece?.VisualPosition ?? BoardLayout.CellToWorldCenter(x, y);
+        return _grid[x, y].VisualPosition;
     }
 
     public bool CanSelect(Point cell)
@@ -111,7 +108,7 @@ public class CheckersBoardModel
             return false;
         }
 
-        List<Point> moves = _rules.GetSelectableMoves(_grid, cell, CurrentTurn);
+        List<Point> moves = _rules.GetSelectableMoves(_grid, cell);
 
         if (moves.Count == 0)
         {
@@ -127,7 +124,7 @@ public class CheckersBoardModel
 
     public bool TryMoveSelectedPiece(Point target)
     {
-        if (IsGameOver || IsBusy || SelectedCell == null || !BoardLayout.IsInside(target) || !_validMoves.Contains(target))
+        if (IsGameOver || IsBusy || SelectedCell == null || !_validMoves.Contains(target))
         {
             return false;
         }
@@ -188,13 +185,7 @@ public class CheckersBoardModel
         }
 
         Point? capturedCell = _rules.FindCapturedCell(_grid, from.X, from.Y, to.X, to.Y, piece);
-        CheckerPiece captured = null;
-
-        if (capturedCell.HasValue && !TryGetCapturedPiece(capturedCell.Value, piece, out captured))
-        {
-            ClearSelection();
-            return;
-        }
+        CheckerPiece captured = capturedCell.HasValue ? GetPiece(capturedCell.Value) : null;
 
         MovePiece(piece, from, to);
         StartMoveAnimation(piece, to);
@@ -211,21 +202,8 @@ public class CheckersBoardModel
 
     private bool CanMoveToCell(Point from, Point to, out CheckerPiece piece)
     {
-        piece = null;
-
-        if (!BoardLayout.IsInside(from) || !BoardLayout.IsInside(to) || !BoardLayout.IsDarkCell(to))
-        {
-            return false;
-        }
-
         piece = _grid[from.X, from.Y];
-        return piece != null && _grid[to.X, to.Y] == null;
-    }
-
-    private bool TryGetCapturedPiece(Point capturedCell, CheckerPiece movingPiece, out CheckerPiece captured)
-    {
-        captured = GetPiece(capturedCell);
-        return captured != null && captured.Side != movingPiece.Side;
+        return _grid[to.X, to.Y] == null;
     }
 
     private void MovePiece(CheckerPiece piece, Point from, Point to)
@@ -334,32 +312,13 @@ public class CheckersBoardModel
 
     private void ApplySlidingSnap(List<SlidingSnap> assignments)
     {
-        if (assignments == null)
-        {
-            return;
-        }
-
         Array.Clear(_grid, 0, _grid.Length);
-        bool[,] used = new bool[BoardLayout.BoardSize, BoardLayout.BoardSize];
 
         foreach (SlidingSnap assignment in assignments)
         {
             CheckerPiece piece = assignment.Piece;
-            if (piece == null)
-            {
-                continue;
-            }
-
             Point cell = assignment.Cell;
-            if (!BoardLayout.IsInside(cell) || !BoardLayout.IsDarkCell(cell) || used[cell.X, cell.Y])
-            {
-                if (!TryFindNearestFreeDarkCell(piece.VisualPosition, used, out cell))
-                {
-                    continue;
-                }
-            }
 
-            used[cell.X, cell.Y] = true;
             _grid[cell.X, cell.Y] = piece;
             SnapPieceToCell(piece, cell);
         }
@@ -374,43 +333,16 @@ public class CheckersBoardModel
         piece.IsSliding = false;
     }
 
-    private static bool TryFindNearestFreeDarkCell(Vector2 position, bool[,] used, out Point best)
-    {
-        best = Point.Zero;
-        float bestDistance = float.MaxValue;
-
-        for (int y = 0; y < BoardLayout.BoardSize; y++)
-        {
-            for (int x = 0; x < BoardLayout.BoardSize; x++)
-            {
-                if (!BoardLayout.IsDarkCell(x, y) || used[x, y])
-                {
-                    continue;
-                }
-
-                float distance = Vector2.DistanceSquared(position, BoardLayout.CellToWorldCenter(x, y));
-                if (distance < bestDistance)
-                {
-                    bestDistance = distance;
-                    best = new Point(x, y);
-                }
-            }
-        }
-
-        return bestDistance < float.MaxValue;
-    }
-
     private List<CheckerPiece> GetPieces()
     {
         List<CheckerPiece> pieces = new();
-        HashSet<CheckerPiece> seen = new(ReferenceEqualityComparer.Instance);
 
         for (int y = 0; y < BoardLayout.BoardSize; y++)
         {
             for (int x = 0; x < BoardLayout.BoardSize; x++)
             {
                 CheckerPiece piece = _grid[x, y];
-                if (piece != null && seen.Add(piece))
+                if (piece != null)
                 {
                     pieces.Add(piece);
                 }
@@ -420,13 +352,4 @@ public class CheckersBoardModel
         return pieces;
     }
 
-    private static float ClampDelta(float deltaSeconds)
-    {
-        if (float.IsNaN(deltaSeconds) || float.IsInfinity(deltaSeconds) || deltaSeconds < 0f)
-        {
-            return 0f;
-        }
-
-        return Math.Min(deltaSeconds, 0.05f);
-    }
 }

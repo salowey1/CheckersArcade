@@ -41,11 +41,6 @@ public class SlidingPhysicsModel
     {
         Reset();
 
-        if (fixedPiece == null || pieces == null || !IsFinite(center))
-        {
-            return;
-        }
-
         IsActive = true;
         _fixedPiece = fixedPiece;
         _fixedPiece.Velocity = Vector2.Zero;
@@ -53,17 +48,15 @@ public class SlidingPhysicsModel
 
         foreach (CheckerPiece piece in pieces)
         {
-            if (piece == null || piece == _fixedPiece)
+            if (piece == _fixedPiece)
             {
                 continue;
             }
 
-            FixPieceState(piece);
-
             Vector2 offset = piece.VisualPosition - center;
             float distance = offset.Length();
             float pushRadius = BoardLayout.CellSize * 2.5f;
-            if (distance <= 1f || distance > pushRadius || float.IsNaN(distance))
+            if (distance <= 1f || distance > pushRadius)
             {
                 continue;
             }
@@ -89,19 +82,11 @@ public class SlidingPhysicsModel
             return false;
         }
 
-        float dt = ClampDelta(deltaSeconds);
-        float friction = MathF.Pow(Friction, dt * 60f);
+        float friction = MathF.Pow(Friction, deltaSeconds * 60f);
         bool hasMovingPiece = false;
 
         foreach (CheckerPiece piece in pieces)
         {
-            if (piece == null)
-            {
-                continue;
-            }
-
-            FixPieceState(piece);
-
             if (piece == _fixedPiece)
             {
                 piece.Velocity = Vector2.Zero;
@@ -109,10 +94,9 @@ public class SlidingPhysicsModel
                 continue;
             }
 
-            piece.VisualPosition += piece.Velocity * dt;
+            piece.VisualPosition += piece.Velocity * deltaSeconds;
             piece.Velocity *= friction;
             KeepInsideBoard(piece);
-            FixPieceState(piece);
 
             if (piece.Velocity.LengthSquared() > StopSpeed * StopSpeed)
             {
@@ -132,7 +116,7 @@ public class SlidingPhysicsModel
             return false;
         }
 
-        _settleTimer += dt;
+        _settleTimer += deltaSeconds;
         if (_settleTimer < SettleTime)
         {
             return false;
@@ -148,21 +132,18 @@ public class SlidingPhysicsModel
         List<SlidingSnap> result = new();
         bool[,] used = new bool[BoardLayout.BoardSize, BoardLayout.BoardSize];
 
-        if (_fixedPiece != null && pieces.Contains(_fixedPiece))
+        Point fixedCell = new(_fixedPiece.GridX, _fixedPiece.GridY);
+        if (!CanUseCell(fixedCell, used))
         {
-            Point fixedCell = new(_fixedPiece.GridX, _fixedPiece.GridY);
-            if (!CanUseCell(fixedCell, used))
-            {
-                fixedCell = FindNearestFreeDarkCell(_fixedPiece.VisualPosition, used);
-            }
-
-            used[fixedCell.X, fixedCell.Y] = true;
-            result.Add(new SlidingSnap(_fixedPiece, fixedCell));
+            fixedCell = FindNearestFreeDarkCell(_fixedPiece.VisualPosition, used);
         }
+
+        used[fixedCell.X, fixedCell.Y] = true;
+        result.Add(new SlidingSnap(_fixedPiece, fixedCell));
 
         foreach (CheckerPiece piece in pieces)
         {
-            if (piece == null || piece == _fixedPiece)
+            if (piece == _fixedPiece)
             {
                 continue;
             }
@@ -179,11 +160,6 @@ public class SlidingPhysicsModel
     {
         Point best = new(0, 1);
         float bestDistance = float.MaxValue;
-
-        if (!IsFinite(position))
-        {
-            position = BoardLayout.CellToWorldCenter(best);
-        }
 
         for (int y = 0; y < BoardLayout.BoardSize; y++)
         {
@@ -226,7 +202,7 @@ public class SlidingPhysicsModel
     {
         foreach (CheckerPiece piece in pieces)
         {
-            if (piece != null && piece.IsSliding)
+            if (piece.IsSliding)
             {
                 return true;
             }
@@ -235,40 +211,4 @@ public class SlidingPhysicsModel
         return false;
     }
 
-    private static void FixPieceState(CheckerPiece piece)
-    {
-        if (piece == null)
-        {
-            return;
-        }
-
-        if (!IsFinite(piece.VisualPosition))
-        {
-            int x = Math.Clamp(piece.GridX, 0, BoardLayout.BoardSize - 1);
-            int y = Math.Clamp(piece.GridY, 0, BoardLayout.BoardSize - 1);
-            piece.VisualPosition = BoardLayout.CellToWorldCenter(x, y);
-        }
-
-        if (!IsFinite(piece.Velocity))
-        {
-            piece.Velocity = Vector2.Zero;
-            piece.IsSliding = false;
-        }
-    }
-
-    private static float ClampDelta(float deltaSeconds)
-    {
-        if (float.IsNaN(deltaSeconds) || float.IsInfinity(deltaSeconds) || deltaSeconds < 0f)
-        {
-            return 0f;
-        }
-
-        return Math.Min(deltaSeconds, 0.05f);
-    }
-
-    private static bool IsFinite(Vector2 value) =>
-        !float.IsNaN(value.X) &&
-        !float.IsNaN(value.Y) &&
-        !float.IsInfinity(value.X) &&
-        !float.IsInfinity(value.Y);
 }
