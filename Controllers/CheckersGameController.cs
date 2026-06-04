@@ -20,7 +20,7 @@ public class CheckersGameController
         _board.Update(deltaSeconds);
     }
 
-    public void HandleMouse(MouseState mouse, bool isLeftClick)
+    public void HandleMouse(MouseState mouse, bool isLeftClick, bool isDoubleClick)
     {
         if (!isLeftClick || _board.IsBusy || _board.IsGameOver)
         {
@@ -28,6 +28,11 @@ public class CheckersGameController
         }
 
         if (!BoardLayout.TryScreenToCell(mouse.X, mouse.Y, out Point clickedCell))
+        {
+            return;
+        }
+
+        if (isDoubleClick && _board.TryExplodePiece(clickedCell))
         {
             return;
         }

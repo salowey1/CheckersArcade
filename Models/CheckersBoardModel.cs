@@ -13,7 +13,7 @@ public class CheckersBoardModel
     private readonly CheckersRules _rules = new();
     private readonly SlidingPhysicsModel _sliding = new();
 
-    private bool _shouldEndTurnAfterCapture;
+    private bool _shouldEndTurnAfterPhysics;
 
     public PieceSide CurrentTurn { get; private set; } = PieceSide.Red;
     public Point? SelectedCell { get; private set; }
@@ -58,7 +58,7 @@ public class CheckersBoardModel
         CurrentTurn = PieceSide.Red;
         ClearSelection();
         _sliding.Reset();
-        _shouldEndTurnAfterCapture = false;
+        _shouldEndTurnAfterPhysics = false;
         CurrentAnimation = null;
         IsGameOver = false;
         Winner = null;
@@ -80,9 +80,9 @@ public class CheckersBoardModel
             ApplySlidingSnap(snapAssignments);
         }
 
-        if (!IsBusy && _shouldEndTurnAfterCapture)
+        if (!IsBusy && _shouldEndTurnAfterPhysics)
         {
-            FinishCaptureMove();
+            FinishPhysicsMove();
         }
     }
 
@@ -131,6 +131,30 @@ public class CheckersBoardModel
 
         Point from = SelectedCell.Value;
         ExecuteMove(from, target);
+        return true;
+    }
+
+    public bool TryExplodePiece(Point cell)
+    {
+        if (IsGameOver || IsBusy)
+        {
+            return false;
+        }
+
+        CheckerPiece piece = GetPiece(cell);
+        if (piece == null || piece.Side != CurrentTurn)
+        {
+            return false;
+        }
+
+        Vector2 epicenter = piece.VisualPosition;
+        _grid[cell.X, cell.Y] = null;
+        ClearSelection();
+
+        PieceCaptured?.Invoke(epicenter);
+        StartSliding(epicenter, null);
+        _shouldEndTurnAfterPhysics = true;
+
         return true;
     }
 
@@ -234,7 +258,7 @@ public class CheckersBoardModel
         StartSliding(epicenter, movingPiece);
 
         _rules.PromoteIfNeeded(movingPiece);
-        _shouldEndTurnAfterCapture = true;
+        _shouldEndTurnAfterPhysics = true;
     }
 
     private void CompleteNormalMove(CheckerPiece piece)
@@ -243,9 +267,9 @@ public class CheckersBoardModel
         EndTurn();
     }
 
-    private void FinishCaptureMove()
+    private void FinishPhysicsMove()
     {
-        _shouldEndTurnAfterCapture = false;
+        _shouldEndTurnAfterPhysics = false;
 
         EndTurn();
     }
@@ -281,7 +305,7 @@ public class CheckersBoardModel
     {
         IsGameOver = true;
         Winner = winner;
-        _shouldEndTurnAfterCapture = false;
+        _shouldEndTurnAfterPhysics = false;
         ClearSelection();
     }
 
@@ -321,6 +345,7 @@ public class CheckersBoardModel
 
             _grid[cell.X, cell.Y] = piece;
             SnapPieceToCell(piece, cell);
+            _rules.PromoteIfNeeded(piece);
         }
     }
 

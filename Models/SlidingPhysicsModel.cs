@@ -43,8 +43,12 @@ public class SlidingPhysicsModel
 
         IsActive = true;
         _fixedPiece = fixedPiece;
-        _fixedPiece.Velocity = Vector2.Zero;
-        _fixedPiece.IsSliding = false;
+
+        if (_fixedPiece != null)
+        {
+            _fixedPiece.Velocity = Vector2.Zero;
+            _fixedPiece.IsSliding = false;
+        }
 
         foreach (CheckerPiece piece in pieces)
         {
@@ -87,7 +91,7 @@ public class SlidingPhysicsModel
 
         foreach (CheckerPiece piece in pieces)
         {
-            if (piece == _fixedPiece)
+            if (_fixedPiece != null && piece == _fixedPiece)
             {
                 piece.Velocity = Vector2.Zero;
                 piece.IsSliding = false;
@@ -132,14 +136,17 @@ public class SlidingPhysicsModel
         List<SlidingSnap> result = new();
         bool[,] used = new bool[BoardLayout.BoardSize, BoardLayout.BoardSize];
 
-        Point fixedCell = new(_fixedPiece.GridX, _fixedPiece.GridY);
-        if (!CanUseCell(fixedCell, used))
+        if (_fixedPiece != null)
         {
-            fixedCell = FindNearestFreeDarkCell(_fixedPiece.VisualPosition, used);
-        }
+            Point fixedCell = new(_fixedPiece.GridX, _fixedPiece.GridY);
+            if (!CanUseCell(fixedCell, used))
+            {
+                fixedCell = FindNearestFreeDarkCell(_fixedPiece.VisualPosition, used);
+            }
 
-        used[fixedCell.X, fixedCell.Y] = true;
-        result.Add(new SlidingSnap(_fixedPiece, fixedCell));
+            used[fixedCell.X, fixedCell.Y] = true;
+            result.Add(new SlidingSnap(_fixedPiece, fixedCell));
+        }
 
         foreach (CheckerPiece piece in pieces)
         {

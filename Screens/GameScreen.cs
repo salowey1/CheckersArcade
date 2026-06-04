@@ -25,9 +25,9 @@ public class GameScreen
         _boardModel.PieceCaptured += _view.PlayCaptureEffect;
     }
 
-    public void HandleInput(MouseState mouse, bool isLeftClick)
+    public void HandleInput(MouseState mouse, bool isLeftClick, bool isDoubleClick)
     {
-        _controller.HandleMouse(mouse, isLeftClick);
+        _controller.HandleMouse(mouse, isLeftClick, isDoubleClick);
     }
 
     public void Update(float deltaSeconds)

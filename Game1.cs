@@ -13,6 +13,8 @@ public class Game1 : Game
 {
     private const int MinWindowWidth = 720;
     private const int MinWindowHeight = 620;
+    private const double DoubleClickSeconds = 0.35;
+    private const int DoubleClickPixelTolerance = 12;
 
     private readonly GraphicsDeviceManager _graphics;
     private SpriteBatch _spriteBatch;
@@ -25,6 +27,8 @@ public class Game1 : Game
 
     private MouseState _currentMouse;
     private MouseState _previousMouse;
+    private Point _lastClickPosition;
+    private double _lastClickTime = -1;
     private KeyboardState _currentKeyboard;
     private KeyboardState _previousKeyboard;
 
@@ -61,6 +65,7 @@ public class Game1 : Game
         _menu.OnPlayClicked += boardSize =>
         {
             _state = ScreenState.Playing;
+            ResetDoubleClickHistory();
             _game?.Reset(boardSize);
         };
         _menu.OnExitClicked += Exit;
@@ -74,6 +79,7 @@ public class Game1 : Game
         HandleEscape();
 
         bool leftClick = IsLeftClickPressed();
+        bool doubleClick = IsDoubleClick(leftClick, gameTime);
         float deltaSeconds = GetDeltaSeconds(gameTime);
 
         if (_state == ScreenState.Menu)
@@ -82,7 +88,7 @@ public class Game1 : Game
         }
         else
         {
-            _game?.HandleInput(_currentMouse, leftClick);
+            _game?.HandleInput(_currentMouse, leftClick, doubleClick);
             _game?.Update(deltaSeconds);
         }
 
@@ -140,6 +146,31 @@ public class Game1 : Game
     private bool IsLeftClickPressed() =>
         _currentMouse.LeftButton == ButtonState.Pressed &&
         _previousMouse.LeftButton == ButtonState.Released;
+
+    private bool IsDoubleClick(bool leftClick, GameTime gameTime)
+    {
+        if (!leftClick)
+        {
+            return false;
+        }
+
+        double currentTime = gameTime.TotalGameTime.TotalSeconds;
+        Point currentPosition = new(_currentMouse.X, _currentMouse.Y);
+        bool isDoubleClick = _lastClickTime >= 0 &&
+            currentTime - _lastClickTime <= DoubleClickSeconds &&
+            Math.Abs(currentPosition.X - _lastClickPosition.X) <= DoubleClickPixelTolerance &&
+            Math.Abs(currentPosition.Y - _lastClickPosition.Y) <= DoubleClickPixelTolerance;
+
+        _lastClickTime = currentTime;
+        _lastClickPosition = currentPosition;
+
+        return isDoubleClick;
+    }
+
+    private void ResetDoubleClickHistory()
+    {
+        _lastClickTime = -1;
+    }
 
     private static float GetDeltaSeconds(GameTime gameTime) =>
         (float)gameTime.ElapsedGameTime.TotalSeconds;
