@@ -139,11 +139,6 @@ public class SlidingPhysicsModel
         if (_fixedPiece != null)
         {
             Point fixedCell = new(_fixedPiece.GridX, _fixedPiece.GridY);
-            if (!CanUseCell(fixedCell, used))
-            {
-                fixedCell = FindNearestFreeDarkCell(_fixedPiece.VisualPosition, used);
-            }
-
             used[fixedCell.X, fixedCell.Y] = true;
             result.Add(new SlidingSnap(_fixedPiece, fixedCell));
         }
