@@ -180,7 +180,7 @@ public class GameView
         }
 
         string menuText = "ESC - меню";
-        string countText = $"Красн: {_board.RedPieceCount}   Син: {_board.BluePieceCount}";
+        string countText = $"Красные: {_board.RedPieceCount}   Синие: {_board.BluePieceCount}";
         float scale = GetHudScale(turnText, menuText + "    " + countText);
         Vector2 firstLine = new(16f * scale, 16f * scale);
         Vector2 secondLine = new(firstLine.X, firstLine.Y + (_font.LineSpacing + 4f) * scale);
